@@ -45,8 +45,9 @@
 
 
 // Locking:
-// * sPortsLock: Protects the sPorts hash table, Team::port_list, and
-//   Port::owner.
+// * sPortsLock: Protects the sPorts hash table.
+// * sTeamListLock[]: Protects Team::port_list. Lock index for given team is
+//   (Team::id % kTeamListLockCount).
 // * Port::lock: Protects all Port members save team_link, hash_link, and lock.
 //   id is immutable.
 // * sPortQuotaLock: Protects sTotalSpaceInUse, sAreaChangeCounter,
@@ -349,6 +350,22 @@ static int32 sWaitingForSpace;
 static port_id sNextPortID = 1;
 static bool sPortsActive = false;
 static rw_lock sPortsLock = RW_LOCK_INITIALIZER("ports list");
+
+enum {
+	kTeamListLockCount = 8
+};
+
+static mutex sTeamListLock[kTeamListLockCount] = {
+	MUTEX_INITIALIZER("team ports list 1"),
+	MUTEX_INITIALIZER("team ports list 2"),
+	MUTEX_INITIALIZER("team ports list 3"),
+	MUTEX_INITIALIZER("team ports list 4"),
+	MUTEX_INITIALIZER("team ports list 5"),
+	MUTEX_INITIALIZER("team ports list 6"),
+	MUTEX_INITIALIZER("team ports list 7"),
+	MUTEX_INITIALIZER("team ports list 8")
+};
+
 static mutex sPortQuotaLock = MUTEX_INITIALIZER("port quota");
 
 static PortNotificationService sNotificationService;
@@ -700,11 +717,15 @@ delete_owned_ports(Team* team)
 {
 	TRACE(("delete_owned_ports(owner = %ld)\n", team->id));
 
-	WriteLocker portsLocker(sPortsLock);
-
 	// move the ports from the team's port list to a local list
 	struct list queue;
-	list_move_to_list(&team->port_list, &queue);
+	{
+		const uint8 lockIndex = team->id % kTeamListLockCount;
+		MutexLocker teamPortsListLocker(sTeamListLock[lockIndex]);
+		list_move_to_list(&team->port_list, &queue);
+	}
+
+	WriteLocker portsLocker(sPortsLock);
 
 	// iterate through the list or ports, remove them from the hash table and
 	// uninitialize them
@@ -849,9 +870,16 @@ create_port(int32 queueLength, const char* name)
 			sNextPortID = 1;
 	} while (sPorts.Lookup(port->id) != NULL);
 
-	// insert port in table and team list
+	// insert port in hash
 	sPorts.Insert(port);
-	list_add_item(&team->port_list, &port->team_link);
+
+	// insert into team list
+	{
+		const uint8 lockIndex = port->owner % kTeamListLockCount;
+		MutexLocker teamPortsListLocker(sTeamListLock[lockIndex]);
+		list_add_item(&team->port_list, &port->team_link);
+	}
+
 	portDeleter.Detach();
 
 	// tracing, notifications, etc.
@@ -919,13 +947,17 @@ delete_port(port_id id)
 		}
 
 		sPorts.Remove(port);
-		list_remove_link(&port->team_link);
-
-		sUsedPorts--;
 
 		locker.SetTo(port->lock, false);
 
+		{
+			const uint8 lockIndex = port->owner % kTeamListLockCount;
+			MutexLocker teamPortsListLocker(sTeamListLock[lockIndex]);
+			list_remove_link(&port->team_link);
+		}
+
 		uninit_port_locked(port);
+		sUsedPorts--;
 	}
 
 	T(Delete(port));
@@ -1077,7 +1109,8 @@ _get_next_port_info(team_id teamID, int32* _cookie, struct port_info* info,
 	BReference<Team> teamReference(team, true);
 
 	// iterate through the team's port list
-	ReadLocker portsLocker(sPortsLock);
+	const uint8 lockIndex = teamID % kTeamListLockCount;
+	MutexLocker teamPortsListLocker(sTeamListLock[lockIndex]);
 
 	int32 stopIndex = *_cookie;
 	int32 index = 0;
@@ -1098,7 +1131,7 @@ _get_next_port_info(team_id teamID, int32* _cookie, struct port_info* info,
 
 	// fill in the port info
 	MutexLocker locker(port->lock);
-	portsLocker.Unlock();
+	teamPortsListLocker.Unlock();
 	fill_port_info(port, info, size);
 
 	*_cookie = stopIndex + 1;
@@ -1498,7 +1531,7 @@ set_port_owner(port_id id, team_id newTeamID)
 	BReference<Team> teamReference(team, true);
 
 	// get the port
-	WriteLocker portsLocker(sPortsLock);
+	ReadLocker portsLocker(sPortsLock);
 	Port* port = sPorts.Lookup(id);
 	if (port == NULL) {
 		TRACE(("set_port_owner: invalid port_id %ld\n", id));
@@ -1508,6 +1541,23 @@ set_port_owner(port_id id, team_id newTeamID)
 
 	// transfer ownership to other team
 	if (team->id != port->owner) {
+		uint8 firstLockIndex  = port->owner % kTeamListLockCount;
+		uint8 secondLockIndex = team->id % kTeamListLockCount;
+
+		// Avoid deadlocks: always lock lower index first
+		if (secondLockIndex < firstLockIndex) {
+			uint8 temp = secondLockIndex;
+			secondLockIndex = firstLockIndex;
+			firstLockIndex = temp;
+		}
+
+		MutexLocker oldTeamPortsListLocker(sTeamListLock[firstLockIndex]);
+		MutexLocker newTeamPortsListLocker;
+		if (firstLockIndex != secondLockIndex) {
+			newTeamPortsListLocker.SetTo(sTeamListLock[secondLockIndex],
+					false);
+		}
+
 		list_remove_link(&port->team_link);
 		list_add_item(&team->port_list, &port->team_link);
 		port->owner = team->id;
