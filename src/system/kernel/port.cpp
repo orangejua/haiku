@@ -50,11 +50,6 @@
 //   (Team::id % kTeamListLockCount).
 // * Port::lock: Protects all Port members save team_link, hash_link, and lock.
 //   id is immutable.
-// * sPortQuotaLock: Protects sTotalSpaceInUse, sAreaChangeCounter,
-//   sWaitingForSpace and the critical section of creating/adding areas for the
-//   port heap in the grow case. It also has to be held when reading
-//   sWaitingForSpace to determine whether or not to notify the
-//   sNoSpaceCondition condition variable.
 //
 // The locking order is sPortsLock -> Port::lock. A port must be looked up
 // in sPorts and locked with sPortsLock held. Afterwards sPortsLock can be
@@ -386,10 +381,8 @@ static int32 sUsedPorts = 0;
 
 static PortHashTable sPorts;
 static PortNameHashTable sPortsByName;
-static heap_allocator* sPortAllocator;
 static ConditionVariable sNoSpaceCondition;
 static vint32 sTotalSpaceCommited = 0;
-static vint32 sAreaChangeCounter = 0;
 static vint32 sWaitingForSpace = 0;
 static port_id sNextPortID = 1;
 static bool sPortsActive = false;
@@ -410,8 +403,6 @@ static mutex sTeamListLock[kTeamListLockCount] = {
 	MUTEX_INITIALIZER("team ports list 7"),
 	MUTEX_INITIALIZER("team ports list 8")
 };
-
-static mutex sPortQuotaLock = MUTEX_INITIALIZER("port quota");
 
 static PortNotificationService sNotificationService;
 
@@ -585,8 +576,8 @@ is_port_closed(Port* port)
 static void
 put_port_message(port_message* message)
 {
-	size_t size = sizeof(port_message) + message->size;
-	heap_free(sPortAllocator, message);
+	const size_t size = sizeof(port_message) + message->size;
+	free(message);
 
 	atomic_add(&sTotalSpaceCommited, -size);
 	if (sWaitingForSpace > 0)
@@ -599,12 +590,11 @@ get_port_message(int32 code, size_t bufferSize, uint32 flags, bigtime_t timeout,
 	port_message** _message, Port& port)
 {
 	const size_t size = sizeof(port_message) + bufferSize;
-	bool needToWait = false;
 
 	while (true) {
 		int32 previouslyCommited = atomic_add(&sTotalSpaceCommited, size);
 
-		while (previouslyCommited + size > kTotalSpaceLimit || needToWait) {
+		while (previouslyCommited + size > kTotalSpaceLimit) {
 			// TODO: add per team limit
 
 			// We are not allowed to create another heap area, as our
@@ -644,16 +634,12 @@ get_port_message(int32 code, size_t bufferSize, uint32 flags, bigtime_t timeout,
 			if (status == B_TIMED_OUT)
 				return B_TIMED_OUT;
 
-			needToWait = false;
 			previouslyCommited = atomic_add(&sTotalSpaceCommited, size);
 			continue;
 		}
 
-		int32 areaChangeCounter = sAreaChangeCounter;
-
 		// Quota is fulfilled, try to allocate the buffer
-		port_message* message
-			= (port_message*)heap_memalign(sPortAllocator, 0, size);
+		port_message* message = (port_message*)malloc(size);
 		if (message != NULL) {
 			message->code = code;
 			message->size = bufferSize;
@@ -665,34 +651,7 @@ get_port_message(int32 code, size_t bufferSize, uint32 flags, bigtime_t timeout,
 		// We weren't able to allocate and we'll start over,so we remove our
 		// size from the commited-counter again.
 		atomic_add(&sTotalSpaceCommited, -size);
-
-		status_t status = mutex_trylock(&sPortQuotaLock);
-		if (status != B_OK || areaChangeCounter != sAreaChangeCounter) {
-			// Someone else already added another area or is currently
-			// busy doing so, start over.
-			continue;
-		}
-		MutexLocker quotaLocker(sPortQuotaLock, true);
-
-		sAreaChangeCounter++;
-
-		// Create a new area for the heap to use
-		addr_t base;
-		area_id area = create_area("port grown buffer", (void**)&base,
-			B_ANY_KERNEL_ADDRESS, kBufferGrowRate, B_NO_LOCK,
-			B_KERNEL_READ_AREA | B_KERNEL_WRITE_AREA);
-		if (area < 0) {
-			// We'll have to get by with what we have, so wait for someone
-			// to free a message instead. We enforce waiting so that we don't
-			// try to create a new area over and over.
-			needToWait = true;
-			continue;
-		}
-
-		heap_add_area(sPortAllocator, area, base, kBufferGrowRate);
-
-		if (sWaitingForSpace > 0)
-			sNoSpaceCondition.NotifyAll();
+		continue;
 	}
 }
 
@@ -836,16 +795,6 @@ port_init(kernel_args *args)
 			// makes the area essentially B_LAZY_LOCK with additional overhead.
 		panic("unable to allocate port area!\n");
 		return B_ERROR;
-	}
-
-	static const heap_class kBufferHeapClass = { "port heap", 100,
-		PORT_MAX_MESSAGE_SIZE + sizeof(port_message), 2 * 1024,
-		sizeof(port_message), 4, 2, 24 };
-	sPortAllocator = heap_create_allocator("port buffer", base,
-		kInitialPortBufferSize, &kBufferHeapClass, true);
-	if (sPortAllocator == NULL) {
-		panic("unable to create port heap");
-		return B_NO_MEMORY;
 	}
 
 	sNoSpaceCondition.Init(&sPorts, "port space");
