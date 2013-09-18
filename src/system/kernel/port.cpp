@@ -348,7 +348,7 @@ static int32 sAreaChangeCounter;
 static int32 sWaitingForSpace;
 static port_id sNextPortID = 1;
 static bool sPortsActive = false;
-static mutex sPortsLock = MUTEX_INITIALIZER("ports list");
+static rw_lock sPortsLock = RW_LOCK_INITIALIZER("ports list");
 static mutex sPortQuotaLock = MUTEX_INITIALIZER("port quota");
 
 static PortNotificationService sNotificationService;
@@ -503,7 +503,7 @@ notify_port_select_events(Port* port, uint16 events)
 static Port*
 get_locked_port(port_id id)
 {
-	MutexLocker portsLocker(sPortsLock);
+	ReadLocker portsLocker(sPortsLock);
 
 	Port* port = sPorts.Lookup(id);
 	if (port != NULL)
@@ -700,7 +700,7 @@ delete_owned_ports(Team* team)
 {
 	TRACE(("delete_owned_ports(owner = %ld)\n", team->id));
 
-	MutexLocker portsLocker(sPortsLock);
+	WriteLocker portsLocker(sPortsLock);
 
 	// move the ports from the team's port list to a local list
 	struct list queue;
@@ -832,7 +832,7 @@ create_port(int32 queueLength, const char* name)
 	}
 	ObjectDeleter<Port> portDeleter(port);
 
-	MutexLocker locker(sPortsLock);
+	WriteLocker locker(sPortsLock);
 
 	// check the ports limit
 	if (sUsedPorts >= sMaxPorts)
@@ -910,7 +910,7 @@ delete_port(port_id id)
 	Port* port;
 	MutexLocker locker;
 	{
-		MutexLocker portsLocker(sPortsLock);
+		WriteLocker portsLocker(sPortsLock);
 
 		port = sPorts.Lookup(id);
 		if (port == NULL) {
@@ -1022,7 +1022,7 @@ find_port(const char* name)
 	if (name == NULL)
 		return B_BAD_VALUE;
 
-	MutexLocker portsLocker(sPortsLock);
+	ReadLocker portsLocker(sPortsLock);
 
 	for (PortHashTable::Iterator it = sPorts.GetIterator();
 		Port* port = it.Next();) {
@@ -1077,7 +1077,7 @@ _get_next_port_info(team_id teamID, int32* _cookie, struct port_info* info,
 	BReference<Team> teamReference(team, true);
 
 	// iterate through the team's port list
-	MutexLocker portsLocker(sPortsLock);
+	ReadLocker portsLocker(sPortsLock);
 
 	int32 stopIndex = *_cookie;
 	int32 index = 0;
@@ -1498,7 +1498,7 @@ set_port_owner(port_id id, team_id newTeamID)
 	BReference<Team> teamReference(team, true);
 
 	// get the port
-	MutexLocker portsLocker(sPortsLock);
+	WriteLocker portsLocker(sPortsLock);
 	Port* port = sPorts.Lookup(id);
 	if (port == NULL) {
 		TRACE(("set_port_owner: invalid port_id %ld\n", id));
