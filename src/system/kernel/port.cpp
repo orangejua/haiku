@@ -84,6 +84,8 @@ struct Port {
 	Port*				hash_link;
 	port_id				id;
 	team_id				owner;
+	Port*				name_hash_link;
+	size_t				name_hash;
 	int32		 		capacity;
 	mutex				lock;
 	uint32				read_count;
@@ -98,6 +100,7 @@ struct Port {
 	Port(team_id owner, int32 queueLength, char* name)
 		:
 		owner(owner),
+		name_hash(0),
 		capacity(queueLength),
 		read_count(0),
 		write_count(queueLength),
@@ -148,6 +151,46 @@ struct PortHashDefinition {
 };
 
 typedef BOpenHashTable<PortHashDefinition> PortHashTable;
+
+
+struct PortNameHashDefinition {
+	typedef const char*	KeyType;
+	typedef	Port		ValueType;
+
+	size_t HashKey(const char* key) const
+	{
+		// Hash function: hash(key) =  key[0] * 31^(length - 1)
+		//   + key[1] * 31^(length - 2) + ... + key[length - 1]
+
+		const size_t length = strlen(key);
+
+		size_t hash = 0;
+		for (size_t index = 0; index < length; index++)
+			hash = 31 * hash + key[index];
+
+		return hash;
+	}
+
+	size_t Hash(Port* value) const
+	{
+		size_t& hash = value->name_hash;
+		if (hash == 0)
+			hash = HashKey(value->lock.name);
+		return hash;
+	}
+
+	bool Compare(const char* key, Port* value) const
+	{
+		return (strcmp(key, value->lock.name) == 0);
+	}
+
+	Port*& GetLink(Port* value) const
+	{
+		return value->name_hash_link;
+	}
+};
+
+typedef BOpenHashTable<PortNameHashDefinition> PortNameHashTable;
 
 
 class PortNotificationService : public DefaultNotificationService {
@@ -342,6 +385,7 @@ static int32 sMaxPorts = 4096;
 static int32 sUsedPorts = 0;
 
 static PortHashTable sPorts;
+static PortNameHashTable sPortsByName;
 static heap_allocator* sPortAllocator;
 static ConditionVariable sNoSpaceCondition;
 static int32 sTotalSpaceInUse;
@@ -350,6 +394,7 @@ static int32 sWaitingForSpace;
 static port_id sNextPortID = 1;
 static bool sPortsActive = false;
 static rw_lock sPortsLock = RW_LOCK_INITIALIZER("ports list");
+static rw_lock sPortsByNameLock = RW_LOCK_INITIALIZER("ports by name hash");
 
 enum {
 	kTeamListLockCount = 8
@@ -726,6 +771,7 @@ delete_owned_ports(Team* team)
 	}
 
 	WriteLocker portsLocker(sPortsLock);
+	WriteLocker portsByNameLocker(sPortsByNameLock);
 
 	// iterate through the list or ports, remove them from the hash table and
 	// uninitialize them
@@ -733,12 +779,14 @@ delete_owned_ports(Team* team)
 	while (port != NULL) {
 		MutexLocker locker(port->lock);
 		sPorts.Remove(port);
+		sPortsByName.Remove(port);
 		uninit_port_locked(port);
 		sUsedPorts--;
 
 		port = (Port*)list_get_next_item(&queue, port);
 	}
 
+	portsByNameLocker.Unlock();
 	portsLocker.Unlock();
 
 	// delete the ports
@@ -764,10 +812,16 @@ port_used_ports(void)
 status_t
 port_init(kernel_args *args)
 {
-	// initialize ports table
+	// initialize ports table and by-name hash
 	new(&sPorts) PortHashTable;
 	if (sPorts.Init() != B_OK) {
 		panic("Failed to init port hash table!");
+		return B_NO_MEMORY;
+	}
+
+	new(&sPortsByName) PortNameHashTable;
+	if (sPortsByName.Init() != B_OK) {
+		panic("Failed to init port by name hash table!");
 		return B_NO_MEMORY;
 	}
 
@@ -854,6 +908,7 @@ create_port(int32 queueLength, const char* name)
 	ObjectDeleter<Port> portDeleter(port);
 
 	WriteLocker locker(sPortsLock);
+	WriteLocker byNameLocker(sPortsByNameLock);
 
 	// check the ports limit
 	if (sUsedPorts >= sMaxPorts)
@@ -872,6 +927,7 @@ create_port(int32 queueLength, const char* name)
 
 	// insert port in hash
 	sPorts.Insert(port);
+	sPortsByName.Insert(port);
 
 	// insert into team list
 	{
@@ -887,6 +943,7 @@ create_port(int32 queueLength, const char* name)
 
 	port_id id = port->id;
 
+	byNameLocker.Unlock();
 	locker.Unlock();
 
 	TRACE(("create_port() done: port created %ld\n", id));
@@ -939,6 +996,7 @@ delete_port(port_id id)
 	MutexLocker locker;
 	{
 		WriteLocker portsLocker(sPortsLock);
+		WriteLocker portsByNameLocker(sPortsByNameLock);
 
 		port = sPorts.Lookup(id);
 		if (port == NULL) {
@@ -947,6 +1005,7 @@ delete_port(port_id id)
 		}
 
 		sPorts.Remove(port);
+		sPortsByName.Remove(port);
 
 		locker.SetTo(port->lock, false);
 
@@ -1054,13 +1113,10 @@ find_port(const char* name)
 	if (name == NULL)
 		return B_BAD_VALUE;
 
-	ReadLocker portsLocker(sPortsLock);
-
-	for (PortHashTable::Iterator it = sPorts.GetIterator();
-		Port* port = it.Next();) {
-		if (!strcmp(name, port->lock.name))
-			return port->id;
-	}
+	ReadLocker portsByNameLocker(sPortsByNameLock);
+	Port* port = sPortsByName.Lookup(name);
+	if (port != NULL)
+		return port->id;
 
 	return B_NAME_NOT_FOUND;
 }
