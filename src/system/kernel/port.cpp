@@ -388,9 +388,9 @@ static PortHashTable sPorts;
 static PortNameHashTable sPortsByName;
 static heap_allocator* sPortAllocator;
 static ConditionVariable sNoSpaceCondition;
-static int32 sTotalSpaceInUse;
-static int32 sAreaChangeCounter;
-static int32 sWaitingForSpace;
+static vint32 sTotalSpaceCommited = 0;
+static vint32 sAreaChangeCounter = 0;
+static vint32 sWaitingForSpace = 0;
 static port_id sNextPortID = 1;
 static bool sPortsActive = false;
 static rw_lock sPortsLock = RW_LOCK_INITIALIZER("ports list");
@@ -588,8 +588,7 @@ put_port_message(port_message* message)
 	size_t size = sizeof(port_message) + message->size;
 	heap_free(sPortAllocator, message);
 
-	MutexLocker quotaLocker(sPortQuotaLock);
-	sTotalSpaceInUse -= size;
+	atomic_add(&sTotalSpaceCommited, -size);
 	if (sWaitingForSpace > 0)
 		sNoSpaceCondition.NotifyAll();
 }
@@ -599,17 +598,20 @@ static status_t
 get_port_message(int32 code, size_t bufferSize, uint32 flags, bigtime_t timeout,
 	port_message** _message, Port& port)
 {
-	size_t size = sizeof(port_message) + bufferSize;
+	const size_t size = sizeof(port_message) + bufferSize;
 	bool needToWait = false;
 
-	MutexLocker quotaLocker(sPortQuotaLock);
-
 	while (true) {
-		while (sTotalSpaceInUse + size > kTotalSpaceLimit || needToWait) {
+		int32 previouslyCommited = atomic_add(&sTotalSpaceCommited, size);
+
+		while (previouslyCommited + size > kTotalSpaceLimit || needToWait) {
 			// TODO: add per team limit
+
 			// We are not allowed to create another heap area, as our
 			// space limit has been reached - just wait until we get
 			// some free space again.
+
+			atomic_add(&sTotalSpaceCommited, -size);
 
 			// TODO: we don't want to wait - but does that also mean we
 			// shouldn't wait for the area creation?
@@ -619,18 +621,20 @@ get_port_message(int32 code, size_t bufferSize, uint32 flags, bigtime_t timeout,
 			ConditionVariableEntry entry;
 			sNoSpaceCondition.Add(&entry);
 
-			sWaitingForSpace++;
-			quotaLocker.Unlock();
-
 			port_id portID = port.id;
 			mutex_unlock(&port.lock);
 
+			atomic_add(&sWaitingForSpace, 1);
+
+			// TODO: right here the condition could be notified and we'd
+			//       miss it.
+
 			status_t status = entry.Wait(flags, timeout);
 
-			// re-lock the port and the quota
+			atomic_add(&sWaitingForSpace, -1);
+
+			// re-lock the port
 			Port* newPort = get_locked_port(portID);
-			quotaLocker.Lock();
-			sWaitingForSpace--;
 
 			if (newPort != &port || is_port_closed(&port)) {
 				// the port is no longer usable
@@ -641,15 +645,13 @@ get_port_message(int32 code, size_t bufferSize, uint32 flags, bigtime_t timeout,
 				return B_TIMED_OUT;
 
 			needToWait = false;
+			previouslyCommited = atomic_add(&sTotalSpaceCommited, size);
 			continue;
 		}
 
 		int32 areaChangeCounter = sAreaChangeCounter;
-		sTotalSpaceInUse += size;
-		quotaLocker.Unlock();
 
 		// Quota is fulfilled, try to allocate the buffer
-
 		port_message* message
 			= (port_message*)heap_memalign(sPortAllocator, 0, size);
 		if (message != NULL) {
@@ -660,21 +662,21 @@ get_port_message(int32 code, size_t bufferSize, uint32 flags, bigtime_t timeout,
 			return B_OK;
 		}
 
-		quotaLocker.Lock();
+		// We weren't able to allocate and we'll start over,so we remove our
+		// size from the commited-counter again.
+		atomic_add(&sTotalSpaceCommited, -size);
 
-		// We weren't able to allocate and we'll start over, including
-		// re-acquireing the quota, so we remove our size from the in-use
-		// counter again.
-		sTotalSpaceInUse -= size;
-
-		if (areaChangeCounter != sAreaChangeCounter) {
-			// There was already an area added since we tried allocating,
-			// start over.
+		status_t status = mutex_trylock(&sPortQuotaLock);
+		if (status != B_OK || areaChangeCounter != sAreaChangeCounter) {
+			// Someone else already added another area or is currently
+			// busy doing so, start over.
 			continue;
 		}
+		MutexLocker quotaLocker(sPortQuotaLock, true);
+
+		sAreaChangeCounter++;
 
 		// Create a new area for the heap to use
-
 		addr_t base;
 		area_id area = create_area("port grown buffer", (void**)&base,
 			B_ANY_KERNEL_ADDRESS, kBufferGrowRate, B_NO_LOCK,
@@ -689,7 +691,6 @@ get_port_message(int32 code, size_t bufferSize, uint32 flags, bigtime_t timeout,
 
 		heap_add_area(sPortAllocator, area, base, kBufferGrowRate);
 
-		sAreaChangeCounter++;
 		if (sWaitingForSpace > 0)
 			sNoSpaceCondition.NotifyAll();
 	}
