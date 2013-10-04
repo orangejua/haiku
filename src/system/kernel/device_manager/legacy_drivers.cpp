@@ -508,7 +508,7 @@ get_priority(const char* path)
 	// using find_directory()?
 	const directory_which whichPath[] = {
 		B_BEOS_DIRECTORY,
-		B_COMMON_DIRECTORY,
+		B_SYSTEM_NONPACKAGED_DIRECTORY,
 		B_USER_DIRECTORY
 	};
 	KPath pathBuffer;
@@ -940,8 +940,9 @@ DirectoryIterator::SetTo(const char* path, const char* subPath, bool recursive)
 	if (path == NULL) {
 		// add default paths
 		const directory_which whichPath[] = {
+			B_USER_NONPACKAGED_ADDONS_DIRECTORY,
 			B_USER_ADDONS_DIRECTORY,
-			B_COMMON_ADDONS_DIRECTORY,
+			B_SYSTEM_NONPACKAGED_ADDONS_DIRECTORY,
 			B_BEOS_ADDONS_DIRECTORY
 		};
 		KPath pathBuffer;
@@ -1087,7 +1088,7 @@ DirectoryWatcher::EventOccurred(NotificationService& service,
 
 	KPath path(B_PATH_NAME_LENGTH + 1);
 	if (path.InitCheck() != B_OK || vfs_entry_ref_to_path(device, directory,
-			name, path.LockBuffer(), path.BufferSize()) != B_OK)
+			name, true, path.LockBuffer(), path.BufferSize()) != B_OK)
 		return;
 
 	path.UnlockBuffer();
@@ -1479,8 +1480,9 @@ legacy_driver_probe(const char* subPath)
 		// We're probing the actual boot volume for the first time,
 		// let's watch its driver directories for changes
 		const directory_which whichPath[] = {
+			B_USER_NONPACKAGED_ADDONS_DIRECTORY,
 			B_USER_ADDONS_DIRECTORY,
-			B_COMMON_ADDONS_DIRECTORY,
+			B_SYSTEM_NONPACKAGED_ADDONS_DIRECTORY,
 			B_BEOS_ADDONS_DIRECTORY
 		};
 		KPath path;

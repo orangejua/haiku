@@ -69,7 +69,7 @@ SharedBitmap::Bitmap(Size which)
 {
 	if (fResourceID == -1 && fMimeType.Length() == 0)
 		return fBitmap[0];
-	
+
 	int32 index = 0;
 	int32 size = 16;
 
@@ -87,14 +87,14 @@ SharedBitmap::Bitmap(Size which)
 			size = 64;
 			break;
 	}
-	
+
 	if (fBitmap[index] == NULL) {
 		if (fResourceID >= 0)
 			fBitmap[index] = _CreateBitmapFromResource(size);
 		else if (fMimeType.Length() > 0)
 			fBitmap[index] = _CreateBitmapFromMimeType(size);
 	}
-	
+
 	return fBitmap[index];
 }
 
@@ -118,36 +118,36 @@ SharedBitmap::_CreateBitmapFromResource(int32 size) const
 			status = BIconUtils::GetVectorIcon(
 				reinterpret_cast<const uint8*>(data), dataSize, bitmap);
 		};
-	
+
 		if (status != B_OK) {
 			delete bitmap;
 			bitmap = NULL;
 		}
-	
+
 		return bitmap;
 	}
-	
+
 	data = resources.LoadResource(B_MESSAGE_TYPE, fResourceID, &dataSize);
 	if (data != NULL) {
 		BMemoryIO stream(data, dataSize);
-	
+
 		// Try to read as an archived bitmap.
 		BMessage archive;
 		status = archive.Unflatten(&stream);
 		if (status != B_OK)
 			return NULL;
-	
+
 		BBitmap* bitmap = new BBitmap(&archive);
-	
+
 		status = bitmap->InitCheck();
 		if (status != B_OK) {
 			delete bitmap;
 			bitmap = NULL;
 		}
-		
+
 		return bitmap;
 	}
-	
+
 	return NULL;
 }
 
@@ -169,7 +169,7 @@ SharedBitmap::_CreateBitmapFromMimeType(int32 size) const
 		delete bitmap;
 		bitmap = NULL;
 	}
-	
+
 	return bitmap;
 }
 
@@ -445,7 +445,9 @@ PackageInfo::PackageInfo()
 	fFullDescription(),
 	fChangelog(),
 	fUserRatings(),
-	fScreenshots()
+	fScreenshots(),
+	fState(NONE),
+	fDownloadProgress(0.0)
 {
 }
 
@@ -464,7 +466,9 @@ PackageInfo::PackageInfo(const BitmapRef& icon, const BString& title,
 	fChangelog(changelog),
 	fCategories(),
 	fUserRatings(),
-	fScreenshots()
+	fScreenshots(),
+	fState(NONE),
+	fDownloadProgress(0.0)
 {
 }
 
@@ -480,7 +484,9 @@ PackageInfo::PackageInfo(const PackageInfo& other)
 	fChangelog(other.fChangelog),
 	fCategories(other.fCategories),
 	fUserRatings(other.fUserRatings),
-	fScreenshots(other.fScreenshots)
+	fScreenshots(other.fScreenshots),
+	fState(other.fState),
+	fDownloadProgress(other.fDownloadProgress)
 {
 }
 
@@ -498,6 +504,8 @@ PackageInfo::operator=(const PackageInfo& other)
 	fCategories = other.fCategories;
 	fUserRatings = other.fUserRatings;
 	fScreenshots = other.fScreenshots;
+	fState = other.fState;
+	fDownloadProgress = other.fDownloadProgress;
 	return *this;
 }
 
@@ -514,7 +522,9 @@ PackageInfo::operator==(const PackageInfo& other) const
 		&& fChangelog == other.fChangelog
 		&& fCategories == other.fCategories
 		&& fUserRatings == other.fUserRatings
-		&& fScreenshots == other.fScreenshots;
+		&& fScreenshots == other.fScreenshots
+		&& fState == other.fState
+		&& fDownloadProgress == other.fDownloadProgress;
 }
 
 
@@ -529,6 +539,34 @@ bool
 PackageInfo::AddCategory(const CategoryRef& category)
 {
 	return fCategories.Add(category);
+}
+
+
+void
+PackageInfo::SetState(PackageState state)
+{
+	if (fState != state) {
+		fState = state;
+		if (fState != DOWNLOADING)
+			fDownloadProgress = 0.0;
+		_NotifyListeners(PKG_CHANGED_STATE);
+	}
+}
+
+
+float
+PackageInfo::DownloadProgress() const
+{
+	return fDownloadProgress;
+}
+
+
+void
+PackageInfo::SetDownloadProgress(float progress)
+{
+	fState = DOWNLOADING;
+	fDownloadProgress = progress;
+	_NotifyListeners(PKG_CHANGED_STATE);
 }
 
 
@@ -553,10 +591,10 @@ PackageInfo::CalculateRatingSummary() const
 	int starRatingCount = sizeof(summary.ratingCountByStar) / sizeof(int);
 	for (int i = 0; i < starRatingCount; i++)
 		summary.ratingCountByStar[i] = 0;
-	
+
 	if (summary.ratingCount <= 0)
 		return summary;
-		
+
 	float ratingSum = 0.0f;
 
 	for (int i = 0; i < summary.ratingCount; i++) {
@@ -566,7 +604,7 @@ PackageInfo::CalculateRatingSummary() const
 			rating = 0.0f;
 		else if (rating > 5.0f)
 			rating = 5.0f;
-		
+
 		ratingSum += rating;
 
 		if (rating <= 1.0f)

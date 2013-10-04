@@ -185,6 +185,15 @@ typedef List<CategoryRef, false> CategoryList;
 typedef List<PackageInfoListenerRef, false, 2> PackageListenerList;
 
 
+enum PackageState {
+	NONE		= 0,
+	INSTALLED	= 1,
+	DOWNLOADING	= 2,
+	ACTIVATED	= 3,
+	UNINSTALLED	= 4,
+};
+
+
 class PackageInfo : public BReferenceable {
 public:
 								PackageInfo();
@@ -215,6 +224,13 @@ public:
 									{ return fPublisher; }
 			const BString&		Changelog() const
 									{ return fChangelog; }
+
+			PackageState		State() const
+									{ return fState; }
+			void				SetState(PackageState state);
+
+			float				DownloadProgress() const;
+			void				SetDownloadProgress(float progress);
 
 			bool				AddCategory(const CategoryRef& category);
 			const CategoryList&	Categories() const
@@ -248,6 +264,8 @@ private:
 			CategoryList		fCategories;
 			UserRatingList		fUserRatings;
 			BitmapList			fScreenshots;
+			PackageState		fState;
+			float				fDownloadProgress;
 			PackageListenerList	fListeners;
 };
 
@@ -256,14 +274,6 @@ typedef BReference<PackageInfo> PackageInfoRef;
 
 
 typedef List<PackageInfoRef, false> PackageList;
-
-
-enum PackageState {
-	NONE		= 0,
-	INSTALLED	= 1,
-	ACTIVATED	= 2,
-	UNINSTALLED	= 3,
-};
 
 
 class DepotInfo {

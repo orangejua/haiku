@@ -185,17 +185,14 @@ MemoryView::Draw(BRect rect)
 				const char* blockAddress = currentAddress + (j
 					* blockByteSize);
 				_GetNextHexBlock(buffer, sizeof(buffer), blockAddress);
-				DrawString(buffer, drawPoint);
 				if (targetAddress >= blockAddress && targetAddress <
-					blockAddress + blockByteSize) {
+						blockAddress + blockByteSize) {
 					PushState();
-					SetHighColor(B_TRANSPARENT_COLOR);
-					SetDrawingMode(B_OP_INVERT);
-					FillRect(BRect(drawPoint.x, drawPoint.y - fh.ascent,
-						drawPoint.x + (hexBlockSize - 1) * fCharWidth,
-						drawPoint.y + fh.descent));
+					SetHighColor(make_color(216,0,0));
+					DrawString(buffer, drawPoint);
 					PopState();
-				}
+				} else
+					DrawString(buffer, drawPoint);
 
 				drawPoint.x += fCharWidth * hexBlockSize;
 			}
@@ -677,7 +674,7 @@ MemoryView::_GetOffsetAt(BPoint point) const
 	float blockWidth = (charsPerBlock * 2 + 1) * fCharWidth;
 	int32 containingBlock = int32(floor(point.x / blockWidth));
 
-	return fHexBlocksPerLine * lineNumber
+	return fHexBlocksPerLine * charsPerBlock * lineNumber
 		+ containingBlock * charsPerBlock;
 }
 
@@ -686,6 +683,9 @@ BPoint
 MemoryView::_GetPointForOffset(int32 offset) const
 {
 	BPoint point;
+	if (fHexMode == HexModeNone)
+		return point;
+
 	int32 bytesPerLine = fHexBlocksPerLine * _GetHexDigitsPerBlock() / 2;
 	int32 line = offset / bytesPerLine;
 	int32 lineOffset = offset % bytesPerLine;
@@ -745,6 +745,9 @@ MemoryView::_GetAddressDisplayWidth() const
 void
 MemoryView::_GetSelectionRegion(BRegion& region)
 {
+	if (fHexMode == HexModeNone)
+		return;
+
 	region.MakeEmpty();
 	BPoint startPoint = _GetPointForOffset(fSelectionStart);
 	BPoint endPoint = _GetPointForOffset(fSelectionEnd);
