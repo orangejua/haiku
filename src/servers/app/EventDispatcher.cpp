@@ -22,6 +22,7 @@
 #include <TokenSpace.h>
 
 #include <Autolock.h>
+#include <ToolTipManager.h>
 #include <View.h>
 
 #include <new>
@@ -242,6 +243,8 @@ EventDispatcher::EventDispatcher()
 	fNextLatestMouseMoved(NULL),
 	fLastButtons(0),
 	fLastUpdate(system_time()),
+	fLastMouseMove(system_time()),
+	fLastNotifyTime(system_time()),
 	fDraggingMessage(false),
 	fDragBitmap(NULL),
 	fCursorLock("cursor loop lock"),
@@ -320,6 +323,13 @@ EventDispatcher::_Run()
 		if (resume_thread(fCursorThread) != B_OK) {
 			kill_thread(fCursorThread);
 			fCursorThread = -1;
+		}
+
+		fCursorIdleThread = spawn_thread(_cursor_idle_looper, "cursor idle loop",
+			B_DISPLAY_PRIORITY, this);
+		if (resume_thread(fCursorIdleThread) != B_OK) {
+			kill_thread(fCursorIdleThread);
+			fCursorIdleThread = -1;
 		}
 	}
 
@@ -785,6 +795,8 @@ EventDispatcher::_EventLoop()
 				if (event->FindPoint("where", &where) == B_OK)
 					fLastCursorPosition = where;
 
+				fLastMouseMove = system_time();
+
 				if (fDraggingMessage)
 					event->AddMessage("be:drag_message", &fDragMessage);
 
@@ -817,6 +829,7 @@ EventDispatcher::_EventLoop()
 			}
 			case B_MOUSE_DOWN:
 			case B_MOUSE_UP:
+			case B_MOUSE_IDLE:
 			{
 #ifdef TRACE_EVENTS
 				if (event->what != B_MOUSE_MOVED)
@@ -1013,6 +1026,29 @@ EventDispatcher::_CursorLoop()
 }
 
 
+void
+EventDispatcher::_CursorIdleLoop()
+{
+	const bigtime_t toolTipDelay = BToolTipManager::Manager()->ShowDelay();
+	
+	for (;;) {
+		const bigtime_t now = system_time();
+		
+		if (fLastNotifyTime < fLastMouseMove
+		    && now - fLastMouseMove >= toolTipDelay) {
+			fLastNotifyTime = now;
+		
+			BMessage* mouseIdle = new BMessage(B_MOUSE_IDLE);
+			mouseIdle->AddPoint("be:view_where", fLastCursorPosition);
+			mouseIdle->AddInt64("idle_time", now - fLastMouseMove);
+			fStream->InsertEvent(mouseIdle);
+		}
+
+		snooze(20000);
+	}
+}
+
+
 /*static*/
 status_t
 EventDispatcher::_event_looper(void* _dispatcher)
@@ -1033,5 +1069,17 @@ EventDispatcher::_cursor_looper(void* _dispatcher)
 
 	ETRACE(("Start cursor loop\n"));
 	dispatcher->_CursorLoop();
+	return B_OK;
+}
+
+
+/*static*/
+status_t
+EventDispatcher::_cursor_idle_looper(void* _dispatcher)
+{
+	EventDispatcher* dispatcher = (EventDispatcher*)_dispatcher;
+
+	ETRACE(("Start cursor idle loop\n"));
+	dispatcher->_CursorIdleLoop();
 	return B_OK;
 }
