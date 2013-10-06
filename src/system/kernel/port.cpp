@@ -690,7 +690,7 @@ get_port_message(int32 code, size_t bufferSize, uint32 flags, bigtime_t timeout,
 			// re-lock the port
 			BReference<Port> newPortRef = get_locked_port(portID);
 
-			if (newPortRef != &port || is_port_closed(&port)) {
+			if (newPortRef.Get() != &port || is_port_closed(&port)) {
 				// the port is no longer usable
 				return B_BAD_PORT_ID;
 			}
