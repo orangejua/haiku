@@ -123,17 +123,14 @@ class EventDispatcher : public BLocker {
 
 		void _EventLoop();
 		void _CursorLoop();
-		void _CursorIdleLoop();
 
 		static status_t _event_looper(void* dispatcher);
 		static status_t _cursor_looper(void* dispatcher);
-		static status_t _cursor_idle_looper(void* dispatcher);
 
 	private:
 		EventStream*	fStream;
 		thread_id		fThread;
 		thread_id		fCursorThread;
-		thread_id		fCursorIdleThread;
 
 		EventTarget*	fPreviousMouseTarget;
 		EventTarget*	fFocus;
@@ -148,8 +145,6 @@ class EventDispatcher : public BLocker {
 		BPoint			fLastCursorPosition;
 		int32			fLastButtons;
 		bigtime_t		fLastUpdate;
-		bigtime_t		fLastMouseMove;
-		bigtime_t		fLastNotifyTime;
 
 		BMessage		fDragMessage;
 		bool			fDraggingMessage;

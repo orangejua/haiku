@@ -243,8 +243,6 @@ EventDispatcher::EventDispatcher()
 	fNextLatestMouseMoved(NULL),
 	fLastButtons(0),
 	fLastUpdate(system_time()),
-	fLastMouseMove(system_time()),
-	fLastNotifyTime(system_time()),
 	fDraggingMessage(false),
 	fDragBitmap(NULL),
 	fCursorLock("cursor loop lock"),
@@ -323,13 +321,6 @@ EventDispatcher::_Run()
 		if (resume_thread(fCursorThread) != B_OK) {
 			kill_thread(fCursorThread);
 			fCursorThread = -1;
-		}
-
-		fCursorIdleThread = spawn_thread(_cursor_idle_looper, "cursor idle loop",
-			B_DISPLAY_PRIORITY, this);
-		if (resume_thread(fCursorIdleThread) != B_OK) {
-			kill_thread(fCursorIdleThread);
-			fCursorIdleThread = -1;
 		}
 	}
 
@@ -795,8 +786,6 @@ EventDispatcher::_EventLoop()
 				if (event->FindPoint("where", &where) == B_OK)
 					fLastCursorPosition = where;
 
-				fLastMouseMove = system_time();
-
 				if (fDraggingMessage)
 					event->AddMessage("be:drag_message", &fDragMessage);
 
@@ -1015,37 +1004,30 @@ void
 EventDispatcher::_CursorLoop()
 {
 	BPoint where;
-	while (fStream->GetNextCursorPosition(where)) {
-		BAutolock _(fCursorLock);
+	const bigtime_t toolTipDelay = BToolTipManager::Manager()->ShowDelay();	
+	bool mouseIdleSent = true;
+	status_t status = B_OK;
+	
+	while (status != B_ERROR) {
+		const bigtime_t timeout = mouseIdleSent ?
+			B_INFINITE_TIMEOUT : toolTipDelay;
+		status = fStream->GetNextCursorPosition(where, timeout);
+		
+		if (status == B_OK) {
+			mouseIdleSent = false;
+			BAutolock _(fCursorLock);
 
-		if (fHWInterface != NULL)
-			fHWInterface->MoveCursorTo(where.x, where.y);
+			if (fHWInterface != NULL)
+				fHWInterface->MoveCursorTo(where.x, where.y);
+		} else if (status == B_TIMED_OUT) {
+			mouseIdleSent = true;
+			BMessage* mouseIdle = new BMessage(B_MOUSE_IDLE);
+			mouseIdle->AddPoint("be:view_where", fLastCursorPosition);
+			fStream->InsertEvent(mouseIdle);
+		}
 	}
 
 	fCursorThread = -1;
-}
-
-
-void
-EventDispatcher::_CursorIdleLoop()
-{
-	const bigtime_t toolTipDelay = BToolTipManager::Manager()->ShowDelay();
-	
-	for (;;) {
-		const bigtime_t now = system_time();
-		
-		if (fLastNotifyTime < fLastMouseMove
-		    && now - fLastMouseMove >= toolTipDelay) {
-			fLastNotifyTime = now;
-		
-			BMessage* mouseIdle = new BMessage(B_MOUSE_IDLE);
-			mouseIdle->AddPoint("be:view_where", fLastCursorPosition);
-			mouseIdle->AddInt64("idle_time", now - fLastMouseMove);
-			fStream->InsertEvent(mouseIdle);
-		}
-
-		snooze(20000);
-	}
 }
 
 
@@ -1069,17 +1051,5 @@ EventDispatcher::_cursor_looper(void* _dispatcher)
 
 	ETRACE(("Start cursor loop\n"));
 	dispatcher->_CursorLoop();
-	return B_OK;
-}
-
-
-/*static*/
-status_t
-EventDispatcher::_cursor_idle_looper(void* _dispatcher)
-{
-	EventDispatcher* dispatcher = (EventDispatcher*)_dispatcher;
-
-	ETRACE(("Start cursor idle loop\n"));
-	dispatcher->_CursorIdleLoop();
 	return B_OK;
 }
