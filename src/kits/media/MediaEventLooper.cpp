@@ -235,14 +235,13 @@ BMediaEventLooper::ControlLoop()
 {
 	CALLED();
 
-	bool isRealtime = false;
 	status_t status;
-	bigtime_t latency;
-	bigtime_t waitUntil;
+	bigtime_t waitUntil = B_INFINITE_TIMEOUT;
+
 	for (;;) {
-		// while there are no events or it is not time for the earliest event,
-		// process messages using WaitForMessages. Whenever this funtion times
-		// out, we need to handle the next event
+		bool isRealTime = false;
+		bool eventLate = false;
+
 		for (;;) {
 			if (RunState() == B_QUITTING)
 				return;
@@ -253,63 +252,97 @@ BMediaEventLooper::ControlLoop()
 			// latency (or, for real-time events, only the scheduling latency).
 			// </BeBook>
 
-			latency = fEventLatency + fSchedulingLatency;
-			if (fEventQueue.HasEvents()
-				&& TimeSource()->Now() - latency
-					>= fEventQueue.FirstEventTime()) {
-//				printf("node %02d waiting for %12Ld that has already happened,"
-//					" now %12Ld\n", ID(), fEventQueue.FirstEventTime(),
-//					system_time());
-				isRealtime = false;
-				break;
-			}
-			if (fRealTimeQueue.HasEvents()
-				&& TimeSource()->RealTime() - fSchedulingLatency
-					>= fRealTimeQueue.FirstEventTime()) {
-				latency = fSchedulingLatency;
-				isRealtime = true;
-				break;
-			}
-			waitUntil = B_INFINITE_TIMEOUT;
+			// Check for events which are already late or should happen right
+			// now. If there are any, process them immediately.
+			const bigtime_t eventLatency = fEventLatency + fSchedulingLatency;
+
+			bigtime_t nextEventQueueTime = B_INFINITE_TIMEOUT;
 			if (fEventQueue.HasEvents()) {
-				waitUntil = TimeSource()->RealTimeFor(
-					fEventQueue.FirstEventTime(), latency);
-//				printf("node %02d waiting for %12Ld that will happen at "
-//					"%12Ld\n", ID(), fEventQueue.FirstEventTime(), waitUntil);
-				isRealtime = false;
-			}
-			if (fRealTimeQueue.HasEvents()) {
-				bigtime_t temp;
-				temp = fRealTimeQueue.FirstEventTime() - fSchedulingLatency;
-				if (temp < waitUntil) {
-					waitUntil = temp;
-					isRealtime = true;
-					latency = fSchedulingLatency;
+				nextEventQueueTime = TimeSource()->RealTimeFor(
+					fEventQueue.FirstEventTime(), eventLatency);
+
+				if (BTimeSource::RealTime() >= nextEventQueueTime) {
+					PRINT(1, "[node %ld] event is late by %lld\n", ID(),
+						BTimeSource::RealTime() - nextEventQueueTime);
+					isRealTime = false;
+					eventLate = true;
+					// Process this event now.
+					break;
 				}
 			}
+
+			bigtime_t nextRealTimeQueueTime = B_INFINITE_TIMEOUT;
+			if (fRealTimeQueue.HasEvents()) {
+				nextRealTimeQueueTime = fRealTimeQueue.FirstEventTime()
+					- fSchedulingLatency;
+
+				if (BTimeSource::RealTime() >= nextRealTimeQueueTime) {
+					PRINT(1, "[node %ld] real time event is late by %lld\n",
+						ID(), BTimeSource::RealTime() - nextRealTimeQueueTime);
+					isRealTime = true;
+					eventLate = true;
+					// Process this event now.
+					break;
+				}
+			}
+
+			// No events need immediate attention. If any of the queues has
+			// pending future events, figure out which one is earliest and
+			// wait (while watching for new messages) until it should be
+			// dispatched.
+			if (nextEventQueueTime <= nextRealTimeQueueTime) {
+				waitUntil = nextEventQueueTime;
+				isRealTime = false;
+			} else {
+				waitUntil = nextRealTimeQueueTime;
+				isRealTime = true;
+			}
+
+			// Wait for a message to arrive, timing out when the next event
+			// needs attention.
+			TRACE("[node %ld] waiting until real time %lld (now %lld)\n", ID(),
+				 waitUntil == B_INFINITE_TIMEOUT ? -1 : waitUntil,
+				 BTimeSource::RealTime());
 			status = WaitForMessage(waitUntil);
-			if (status == B_TIMED_OUT)
+			if (status == B_TIMED_OUT) {
+				TRACE("[node %ld] woken up at %lld\n", ID(),
+					BTimeSource::RealTime());
 				break;
+			}
 		}
+
 		// we have timed out - so handle the next event
 		media_timed_event event;
-		if (isRealtime)
+		if (isRealTime)
 			status = fRealTimeQueue.RemoveFirstEvent(&event);
 		else
 			status = fEventQueue.RemoveFirstEvent(&event);
 
-//		printf("node %02d handling    %12Ld  at %12Ld\n", ID(),
-//			event.event_time, system_time());
-
+		bigtime_t lateness = 0;
 		if (status == B_OK) {
-			bigtime_t lateness;
-			if (isRealtime)
-				lateness = TimeSource()->RealTime() - (bigtime_t)event.event_time;
-			else
-				lateness = TimeSource()->RealTime()
-					- TimeSource()->RealTimeFor(event.event_time, 0)
-					+ fEventLatency;
-			DispatchEvent(&event, lateness, isRealtime);
+			if (isRealTime)
+				lateness = event.enqueue_time - event.event_time;
+			else {
+				lateness = event.enqueue_time - TimeSource()->RealTimeFor(
+					event.event_time, fEventLatency);
+			}
+			if (lateness < 0)
+				lateness = 0;
+
+			TRACE("[node %ld] handling %lld at %lld (enqueue lateness %lld)\n",
+				ID(), event.event_time, BTimeSource::RealTime(), lateness);
+
+			DispatchEvent(&event, lateness, isRealTime);
+		}
+
+		if (eventLate) {
+			PRINT(1, "[node %ld] enqueue lateness %lld\n", ID(), lateness);
+
+			// Check for pending messages. If we keep getting late events
+			// we would otherwise go into a loop which never gets to
+			// WaitForMessage() and thus control port messages would
+			// never reach us.
+			WaitForMessage(0);
 		}
 	}
 }
@@ -430,6 +463,10 @@ BMediaEventLooper::SetEventLatency(bigtime_t latency)
 	// clamp to a valid value
 	if (latency < 0)
 		latency = 0;
+
+	PRINT(1, "[node %ld] BMediaEventLooper::SetEventLatency "
+		"%lld -> %lld  (difference %lld)\n", ID(), fEventLatency,
+		latency, latency - fEventLatency);
 
 	fEventLatency = latency;
 }

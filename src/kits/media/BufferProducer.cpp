@@ -361,6 +361,8 @@ BBufferProducer::HandleMessage(int32 message, const void* data, size_t size)
 			const producer_late_notice_received_command* command
 				= static_cast<
 					const producer_late_notice_received_command*>(data);
+			PRINT(1, "[node %ld] BBufferProducer::LateNoticeReceived, "
+				"lateness %lld\n", ID(), command->how_much);
 			LateNoticeReceived(command->source, command->how_much,
 				command->performance_time);
 			return B_OK;
@@ -408,6 +410,8 @@ BBufferProducer::LatencyChanged(const media_source& source,
 	const media_destination& destination, bigtime_t newLatency, uint32 flags)
 {
 	CALLED();
+	PRINT(1, "[node %ld] BBufferProducer::LatencyChanged, new latency %lld\n",
+		ID(), newLatency);
 	// may be implemented by derived classes
 }
 

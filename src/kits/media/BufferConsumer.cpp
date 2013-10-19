@@ -101,6 +101,8 @@ BBufferConsumer::NotifyLateProducer(const media_source& whatSource,
 	bigtime_t howMuch, perf_time_t performanceTime)
 {
 	CALLED();
+	PRINT(1, "BBufferConsumer::NotifyLateProducer, lateness %lld\n", howMuch);
+
 	if (IS_INVALID_SOURCE(whatSource))
 		return;
 
@@ -333,9 +335,9 @@ BBufferConsumer::SendLatencyChange(const media_source& source,
 	command.latency = newLatency;
 	command.flags = flags;
 
-	TRACE("###### BBufferConsumer::SendLatencyChange: latency from %ld/%ld to "
-		"%ld/%ld changed to %Ld\n", source.port, source.id, destination.port,
-		destination.id, newLatency);
+	PRINT(1, "BBufferConsumer::SendLatencyChange: latency from "
+		"%ld/%ld to %ld/%ld changed to %Ld\n", source.port, source.id,
+		destination.port, destination.id, newLatency);
 
 	return SendToPort(source.port, PRODUCER_LATENCY_CHANGED, &command,
 		sizeof(command));

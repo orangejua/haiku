@@ -37,6 +37,7 @@
 #include <Buffer.h>
 #include <InterfaceDefs.h> //defines B_DELETE
 #include <TimedEventQueue.h>
+#include <TimeSource.h>
 
 #include "debug.h"
 #include "Debug.h"
@@ -80,6 +81,9 @@ _event_queue_imp::AddEvent(const media_timed_event& event)
 
 	if (event.type <= 0)
 		 return B_BAD_VALUE;
+
+	const_cast<media_timed_event&>(event).enqueue_time =
+		BTimeSource::RealTime();
 
 	// create a new queue
 	if (fFirstEntry == NULL) {
