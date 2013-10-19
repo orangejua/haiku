@@ -31,7 +31,6 @@
 #include <TimeSource.h>
 #include <scheduler.h>
 #include <Buffer.h>
-#include <ServerInterface.h>
 #include "debug.h"
 
 /*************************************************************
@@ -212,7 +211,6 @@ BMediaEventLooper::ControlLoop()
 	status_t err;
 	bigtime_t latency;
 	bigtime_t waituntil;
-	bigtime_t lateness;
 	for (;;) {
 		// while there are no events or it is not time for the earliest event,
 		// process messages using WaitForMessages. Whenever this funtion times out,
@@ -225,37 +223,31 @@ BMediaEventLooper::ControlLoop()
 			// only the scheduling latency).
 
 			latency = fEventLatency + fSchedulingLatency;
+			if (fEventQueue.HasEvents() && (TimeSource()->Now() - latency) >= fEventQueue.FirstEventTime()) {
+//				printf("node %02d waiting for %12Ld that has already happened, now %12Ld\n", ID(), fEventQueue.FirstEventTime(), system_time());
+				is_realtime = false;
+				break;
+			}
+			if (fRealTimeQueue.HasEvents() && (TimeSource()->RealTime() - fSchedulingLatency) >= fRealTimeQueue.FirstEventTime()) {
+				latency = fSchedulingLatency;
+				is_realtime = true;
+				break;
+			}
 			waituntil = B_INFINITE_TIMEOUT;
 			if (fEventQueue.HasEvents()) {
-				const media_timed_event *firstEvent = fEventQueue.FirstEvent();
-				waituntil = TimeSource()->RealTimeFor(firstEvent->event_time, latency);
+				waituntil = TimeSource()->RealTimeFor(fEventQueue.FirstEventTime(), latency);
+//				printf("node %02d waiting for %12Ld that will happen at %12Ld\n", ID(), fEventQueue.FirstEventTime(), waituntil);
 				is_realtime = false;
-				lateness = firstEvent->queued_time - waituntil;
-				if (lateness > 0) {
-//					if (lateness > 1000)
-//						printf("node %02ld handling %12Ld at %12Ld -- %Ld late,  queued at %Ld now %12Ld \n",
-//							ID(), fEventQueue.FirstEventTime(), TimeSource()->Now(), lateness,
-//							firstEvent->queued_time, TimeSource()->RealTime());
-					is_realtime = false;
-					break;
-				}
-//				printf("node %02ld waiting for %12Ld that will happen at %12Ld\n", ID(), fEventQueue.FirstEventTime(), waituntil);
 			}
 			if (fRealTimeQueue.HasEvents()) {
-				const media_timed_event *firstEvent = fRealTimeQueue.FirstEvent();
 				bigtime_t temp;
-				temp = firstEvent->event_time - fSchedulingLatency;
-				lateness =  firstEvent->queued_time - temp;
-				if (lateness > 0) {
-					is_realtime = true;
-					break;
-				}
+				temp = fRealTimeQueue.FirstEventTime() - fSchedulingLatency;
 				if (temp < waituntil) {
 					waituntil = temp;
 					is_realtime = true;
+					latency = fSchedulingLatency;
 				}
 			}
-			lateness = 0;	// remove any extraneous value if we get this far
 			err = WaitForMessage(waituntil);
 			if (err == B_TIMED_OUT)
 				break;
@@ -267,9 +259,16 @@ BMediaEventLooper::ControlLoop()
 		else
 			err = fEventQueue.RemoveFirstEvent(&event);
 
-//		printf("node %02ld handling  %12Ld  at %12Ld\n", ID(), event.event_time, TimeSource()->Now());
+//		printf("node %02d handling    %12Ld  at %12Ld\n", ID(), event.event_time, system_time());
 
-		if (err == B_OK) DispatchEvent(&event, lateness, is_realtime);
+		if (err == B_OK) {
+			bigtime_t lateness;
+			if (is_realtime)
+				lateness = TimeSource()->RealTime() - event.event_time;
+			else
+				lateness = TimeSource()->RealTime() - TimeSource()->RealTimeFor(event.event_time, 0) + fEventLatency;
+			DispatchEvent(&event, lateness, is_realtime);
+		}
 	}
 }
 
@@ -391,7 +390,6 @@ BMediaEventLooper::SetEventLatency(bigtime_t latency)
 		latency = 0;
 
 	fEventLatency = latency;
-	write_port_etc(ControlPort(), GENERAL_PURPOSE_WAKEUP, 0, 0, B_TIMEOUT, 0);
 }
 
 

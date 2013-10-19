@@ -136,7 +136,6 @@ private:
 			bool				fDisableStop;
 			media_format		fDefaultFormat;
 			bigtime_t			fLastLateNotification;
-			bigtime_t			fLastLateness;
 };
 
 
