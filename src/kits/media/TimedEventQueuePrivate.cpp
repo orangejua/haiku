@@ -27,19 +27,25 @@
  *
  */
 
-/* Implements _event_queue_imp used by BTimedEventQueue, not thread save!
+/* Implements _event_queue_imp used by BTimedEventQueue, not thread safe!
  */
-#include <TimedEventQueue.h>
+
+
+#include "TimedEventQueuePrivate.h"
+
 #include <Autolock.h>
 #include <Buffer.h>
 #include <InterfaceDefs.h> //defines B_DELETE
-#include "TimedEventQueuePrivate.h"
-#include "Debug.h"
+#include <TimedEventQueue.h>
+
 #include "debug.h"
+#include "Debug.h"
 
 #include <string.h>
 
-_event_queue_imp::_event_queue_imp() :
+
+_event_queue_imp::_event_queue_imp()
+	:
 	fLock(new BLocker("BTimedEventQueue locker")),
 	fEventCount(0),
 	fFirstEntry(NULL),
@@ -52,75 +58,76 @@ _event_queue_imp::_event_queue_imp() :
 
 _event_queue_imp::~_event_queue_imp()
 {
-	event_queue_entry *entry;
+	event_queue_entry* entry;
 	entry = fFirstEntry;
 	while (entry) {
-		event_queue_entry *deleteme;
-		deleteme = entry;
+		event_queue_entry* deleteMe;
+		deleteMe = entry;
 		entry = entry->next;
-		delete deleteme;
+		delete deleteMe;
 	}
 	delete fLock;
 }
 
 
 status_t
-_event_queue_imp::AddEvent(const media_timed_event &event)
+_event_queue_imp::AddEvent(const media_timed_event& event)
 {
 	BAutolock lock(fLock);
 
-//	printf("        adding      %12Ld  at %12Ld\n", event.event_time, system_time());
+//	printf("        adding      %12Ld  at %12Ld\n", event.event_time,
+//		system_time());
 
-	if (event.type <= 0) {
+	if (event.type <= 0)
 		 return B_BAD_VALUE;
-	}
 
-	//create a new queue
+	// create a new queue
 	if (fFirstEntry == NULL) {
 		ASSERT(fEventCount == 0);
 		ASSERT(fLastEntry == NULL);
 		fFirstEntry = fLastEntry = new event_queue_entry;
 		fFirstEntry->event = event;
-		fFirstEntry->prev = NULL;
+		fFirstEntry->previous = NULL;
 		fFirstEntry->next = NULL;
 		fEventCount++;
 		return B_OK;
 	}
 
-	//insert at queue begin
+	// insert at queue begin
 	if (fFirstEntry->event.event_time >= event.event_time) {
-		event_queue_entry *newentry = new event_queue_entry;
-		newentry->event = event;
-		newentry->prev = NULL;
-		newentry->next = fFirstEntry;
-		fFirstEntry->prev = newentry;
-		fFirstEntry = newentry;
+		event_queue_entry* newEntry = new event_queue_entry;
+		newEntry->event = event;
+		newEntry->previous = NULL;
+		newEntry->next = fFirstEntry;
+		fFirstEntry->previous = newEntry;
+		fFirstEntry = newEntry;
 		fEventCount++;
 		return B_OK;
 	}
 
-	//insert at queue end
+	// insert at queue end
 	if (fLastEntry->event.event_time <= event.event_time) {
-		event_queue_entry *newentry = new event_queue_entry;
-		newentry->event = event;
-		newentry->prev = fLastEntry;
-		newentry->next = NULL;
-		fLastEntry->next = newentry;
-		fLastEntry = newentry;
+		event_queue_entry* newEntry = new event_queue_entry;
+		newEntry->event = event;
+		newEntry->previous = fLastEntry;
+		newEntry->next = NULL;
+		fLastEntry->next = newEntry;
+		fLastEntry = newEntry;
 		fEventCount++;
 		return B_OK;
 	}
 
-	//insert into the queue
-	for (event_queue_entry *entry = fLastEntry; entry; entry = entry->prev) {
+	// insert into the queue
+	for (event_queue_entry* entry = fLastEntry; entry;
+		entry = entry->previous) {
 		if (entry->event.event_time <= event.event_time) {
-			//insert after entry
-			event_queue_entry *newentry = new event_queue_entry;
-			newentry->event = event;
-			newentry->prev = entry;
-			newentry->next = entry->next;
-			(entry->next)->prev = newentry;
-			entry->next = newentry;
+			// insert after entry
+			event_queue_entry* newEntry = new event_queue_entry;
+			newEntry->event = event;
+			newEntry->previous = entry;
+			newEntry->next = entry->next;
+			(entry->next)->previous = newEntry;
+			entry->next = newEntry;
 			fEventCount++;
 			return B_OK;
 		}
@@ -132,14 +139,14 @@ _event_queue_imp::AddEvent(const media_timed_event &event)
 
 
 status_t
-_event_queue_imp::RemoveEvent(const media_timed_event *event)
+_event_queue_imp::RemoveEvent(const media_timed_event* event)
 {
 	BAutolock lock(fLock);
 
-	for (event_queue_entry *entry = fFirstEntry; entry; entry = entry->next) {
+	for (event_queue_entry* entry = fFirstEntry; entry; entry = entry->next) {
 		if (entry->event == *event) {
 			// No cleanup here
-			RemoveEntry(entry);
+			_RemoveEntry(entry);
 			return B_OK;
 		}
 	}
@@ -149,7 +156,7 @@ _event_queue_imp::RemoveEvent(const media_timed_event *event)
 
 
 status_t
-_event_queue_imp::RemoveFirstEvent(media_timed_event * outEvent)
+_event_queue_imp::RemoveFirstEvent(media_timed_event* outEvent)
 {
 	BAutolock lock(fLock);
 
@@ -159,11 +166,10 @@ _event_queue_imp::RemoveFirstEvent(media_timed_event * outEvent)
 	if (outEvent != 0) {
 		// No cleanup here
 		*outEvent = fFirstEntry->event;
-	} else {
-		CleanupEvent(&fFirstEntry->event);
-	}
+	} else
+		_CleanupEvent(&fFirstEntry->event);
 
-	RemoveEntry(fFirstEntry);
+	_RemoveEntry(fFirstEntry);
 
 	return B_OK;
 }
@@ -179,14 +185,14 @@ _event_queue_imp::HasEvents() const
 int32
 _event_queue_imp::EventCount() const
 {
-	#if DEBUG > 1
+#if DEBUG > 1
 		Dump();
-	#endif
+#endif
 	return fEventCount;
 }
 
 
-const media_timed_event *
+const media_timed_event*
 _event_queue_imp::FirstEvent() const
 {
 	return fFirstEntry ? &fFirstEntry->event : NULL;
@@ -200,7 +206,7 @@ _event_queue_imp::FirstEventTime() const
 }
 
 
-const media_timed_event *
+const media_timed_event*
 _event_queue_imp::LastEvent() const
 {
 	return fLastEntry ? &fLastEntry->event : NULL;
@@ -214,54 +220,58 @@ _event_queue_imp::LastEventTime() const
 }
 
 
-const media_timed_event *
+const media_timed_event*
 _event_queue_imp::FindFirstMatch(bigtime_t eventTime,
-								 BTimedEventQueue::time_direction direction,
-								 bool inclusive,
-								 int32 eventType)
+	BTimedEventQueue::time_direction direction, bool inclusive,
+	int32 eventType)
 {
-	event_queue_entry *end;
-	event_queue_entry *entry;
+	event_queue_entry* end;
+	event_queue_entry* entry;
 
 	BAutolock lock(fLock);
 
 	switch (direction) {
 		case BTimedEventQueue::B_ALWAYS:
 			for (entry = fFirstEntry; entry; entry = entry->next) {
-				if (eventType == BTimedEventQueue::B_ANY_EVENT || eventType == entry->event.type)
+				if (eventType == BTimedEventQueue::B_ANY_EVENT
+					|| eventType == entry->event.type)
 					return &entry->event;
 			}
 			return NULL;
 
 		case BTimedEventQueue::B_BEFORE_TIME:
-			end = GetEnd_BeforeTime(eventTime, inclusive);
+			end = _GetEndBeforeTime(eventTime, inclusive);
 			if (end == NULL)
 				return NULL;
 			end = end->next;
 			for (entry = fFirstEntry; entry != end; entry = entry->next) {
-				if (eventType == BTimedEventQueue::B_ANY_EVENT || eventType == entry->event.type) {
+				if (eventType == BTimedEventQueue::B_ANY_EVENT
+					|| eventType == entry->event.type) {
 					return &entry->event;
 				}
 			}
 			return NULL;
 
 		case BTimedEventQueue::B_AT_TIME:
-			{
-				bool found_time = false;
-				for (entry = fFirstEntry; entry; entry = entry->next) {
-					if (eventTime == entry->event.event_time) {
-						found_time = true;
-						if (eventType == BTimedEventQueue::B_ANY_EVENT || eventType == entry->event.type)
-							return &entry->event;
-					} else if (found_time)
-						return NULL;
-				}
-				return NULL;
+		{
+			bool foundTime = false;
+			for (entry = fFirstEntry; entry; entry = entry->next) {
+				if (eventTime == entry->event.event_time) {
+					foundTime = true;
+					if (eventType == BTimedEventQueue::B_ANY_EVENT
+						|| eventType == entry->event.type)
+						return &entry->event;
+				} else if (foundTime)
+					return NULL;
 			}
+			return NULL;
+		}
 
 		case BTimedEventQueue::B_AFTER_TIME:
-			for (entry = GetStart_AfterTime(eventTime, inclusive); entry; entry = entry->next) {
-				if (eventType == BTimedEventQueue::B_ANY_EVENT || eventType == entry->event.type) {
+			for (entry = _GetStartAfterTime(eventTime, inclusive); entry;
+				entry = entry->next) {
+				if (eventType == BTimedEventQueue::B_ANY_EVENT
+					|| eventType == entry->event.type) {
 					return &entry->event;
 				}
 			}
@@ -274,15 +284,13 @@ _event_queue_imp::FindFirstMatch(bigtime_t eventTime,
 
 status_t
 _event_queue_imp::DoForEach(BTimedEventQueue::for_each_hook hook,
-							void *context,
-							bigtime_t eventTime,
-							BTimedEventQueue::time_direction direction,
-							bool inclusive,
-							int32 eventType)
+	void* context, bigtime_t eventTime,
+	BTimedEventQueue::time_direction direction, bool inclusive,
+	int32 eventType)
 {
-	event_queue_entry *end;
-	event_queue_entry *entry;
-	event_queue_entry *remove;
+	event_queue_entry* end;
+	event_queue_entry* entry;
+	event_queue_entry* remove;
 	BTimedEventQueue::queue_action action;
 
 	BAutolock lock(fLock);
@@ -290,115 +298,122 @@ _event_queue_imp::DoForEach(BTimedEventQueue::for_each_hook hook,
 	switch (direction) {
 		case BTimedEventQueue::B_ALWAYS:
 			for (entry = fFirstEntry; entry; ) {
-				if (eventType == BTimedEventQueue::B_ANY_EVENT || eventType == entry->event.type) {
+				if (eventType == BTimedEventQueue::B_ANY_EVENT
+					|| eventType == entry->event.type) {
 					action = (*hook)(&entry->event, context);
 					switch (action) {
 						case BTimedEventQueue::B_DONE:
 							return B_OK;
+
 						case BTimedEventQueue::B_REMOVE_EVENT:
-							CleanupEvent(&entry->event);
+							_CleanupEvent(&entry->event);
 							remove = entry;
 							entry = entry->next;
-							RemoveEntry(remove);
+							_RemoveEntry(remove);
 							break;
+
 						case BTimedEventQueue::B_NO_ACTION:
 						case BTimedEventQueue::B_RESORT_QUEUE:
 						default:
 							entry = entry->next;
 							break;
 					}
-				} else {
+				} else
 					entry = entry->next;
-				}
 			}
 			return B_OK;
 
 		case BTimedEventQueue::B_BEFORE_TIME:
-			end = GetEnd_BeforeTime(eventTime, inclusive);
+			end = _GetEndBeforeTime(eventTime, inclusive);
 			if (end == NULL)
 				return B_OK;
 			end = end->next;
 			for (entry = fFirstEntry; entry != end; ) {
-				if (eventType == BTimedEventQueue::B_ANY_EVENT || eventType == entry->event.type) {
+				if (eventType == BTimedEventQueue::B_ANY_EVENT
+					|| eventType == entry->event.type) {
 					action = (*hook)(&entry->event, context);
 					switch (action) {
 						case BTimedEventQueue::B_DONE:
 							return B_OK;
+
 						case BTimedEventQueue::B_REMOVE_EVENT:
-							CleanupEvent(&entry->event);
+							_CleanupEvent(&entry->event);
 							remove = entry;
 							entry = entry->next;
-							RemoveEntry(remove);
+							_RemoveEntry(remove);
 							break;
+
 						case BTimedEventQueue::B_NO_ACTION:
 						case BTimedEventQueue::B_RESORT_QUEUE:
 						default:
 							entry = entry->next;
 							break;
 					}
-				} else {
+				} else
 					entry = entry->next;
-				}
 			}
 			return B_OK;
 
 		case BTimedEventQueue::B_AT_TIME:
-			{
-				bool found_time = false;
-				for (entry = fFirstEntry; entry; ) {
-					if (eventTime == entry->event.event_time) {
-						found_time = true;
-						if (eventType == BTimedEventQueue::B_ANY_EVENT || eventType == entry->event.type) {
-							action = (*hook)(&entry->event, context);
-							switch (action) {
-								case BTimedEventQueue::B_DONE:
-									return B_OK;
-								case BTimedEventQueue::B_REMOVE_EVENT:
-									CleanupEvent(&entry->event);
-									remove = entry;
-									entry = entry->next;
-									RemoveEntry(remove);
-									break;
-								case BTimedEventQueue::B_NO_ACTION:
-								case BTimedEventQueue::B_RESORT_QUEUE:
-								default:
-									entry = entry->next;
-									break;
-							}
-						} else {
-							entry = entry->next;
+		{
+			bool foundTime = false;
+			for (entry = fFirstEntry; entry; ) {
+				if (eventTime == entry->event.event_time) {
+					foundTime = true;
+					if (eventType == BTimedEventQueue::B_ANY_EVENT
+						|| eventType == entry->event.type) {
+						action = (*hook)(&entry->event, context);
+						switch (action) {
+							case BTimedEventQueue::B_DONE:
+								return B_OK;
+
+							case BTimedEventQueue::B_REMOVE_EVENT:
+								_CleanupEvent(&entry->event);
+								remove = entry;
+								entry = entry->next;
+								_RemoveEntry(remove);
+								break;
+
+							case BTimedEventQueue::B_NO_ACTION:
+							case BTimedEventQueue::B_RESORT_QUEUE:
+							default:
+								entry = entry->next;
+								break;
 						}
-					} else if (found_time) {
-						break;
-					} else {
+					} else
 						entry = entry->next;
-					}
-				}
-				return B_OK;
+				} else if (foundTime)
+					break;
+				else
+					entry = entry->next;
 			}
+			return B_OK;
+		}
 
 		case BTimedEventQueue::B_AFTER_TIME:
-			for (entry = GetStart_AfterTime(eventTime, inclusive); entry; ) {
-				if (eventType == BTimedEventQueue::B_ANY_EVENT || eventType == entry->event.type) {
+			for (entry = _GetStartAfterTime(eventTime, inclusive); entry; ) {
+				if (eventType == BTimedEventQueue::B_ANY_EVENT
+					|| eventType == entry->event.type) {
 					action = (*hook)(&entry->event, context);
 					switch (action) {
 						case BTimedEventQueue::B_DONE:
 							return B_OK;
+
 						case BTimedEventQueue::B_REMOVE_EVENT:
-							CleanupEvent(&entry->event);
+							_CleanupEvent(&entry->event);
 							remove = entry;
 							entry = entry->next;
-							RemoveEntry(remove);
+							_RemoveEntry(remove);
 							break;
+
 						case BTimedEventQueue::B_NO_ACTION:
 						case BTimedEventQueue::B_RESORT_QUEUE:
 						default:
 							entry = entry->next;
 							break;
 					}
-				} else {
+				} else
 					entry = entry->next;
-				}
 			}
 			return B_OK;
 	}
@@ -409,80 +424,78 @@ _event_queue_imp::DoForEach(BTimedEventQueue::for_each_hook hook,
 
 status_t
 _event_queue_imp::FlushEvents(bigtime_t eventTime,
-							  BTimedEventQueue::time_direction direction,
-							  bool inclusive,
-							  int32 eventType)
+	BTimedEventQueue::time_direction direction, bool inclusive,
+	int32 eventType)
 {
-	event_queue_entry *end;
-	event_queue_entry *entry;
-	event_queue_entry *remove;
+	event_queue_entry* end;
+	event_queue_entry* entry;
+	event_queue_entry* remove;
 
 	BAutolock lock(fLock);
 
 	switch (direction) {
 		case BTimedEventQueue::B_ALWAYS:
 			for (entry = fFirstEntry; entry; ) {
-				if (eventType == BTimedEventQueue::B_ANY_EVENT || eventType == entry->event.type) {
-					CleanupEvent(&entry->event);
+				if (eventType == BTimedEventQueue::B_ANY_EVENT
+					|| eventType == entry->event.type) {
+					_CleanupEvent(&entry->event);
 					remove = entry;
 					entry = entry->next;
-					RemoveEntry(remove);
-				} else {
+					_RemoveEntry(remove);
+				} else
 					entry = entry->next;
-				}
 			}
 			return B_OK;
 
 		case BTimedEventQueue::B_BEFORE_TIME:
-			end = GetEnd_BeforeTime(eventTime, inclusive);
+			end = _GetEndBeforeTime(eventTime, inclusive);
 			if (end == NULL)
 				return B_OK;
 			end = end->next;
 			for (entry = fFirstEntry; entry != end; ) {
-				if (eventType == BTimedEventQueue::B_ANY_EVENT || eventType == entry->event.type) {
-					CleanupEvent(&entry->event);
+				if (eventType == BTimedEventQueue::B_ANY_EVENT
+					|| eventType == entry->event.type) {
+					_CleanupEvent(&entry->event);
 					remove = entry;
 					entry = entry->next;
-					RemoveEntry(remove);
-				} else {
+					_RemoveEntry(remove);
+				} else
 					entry = entry->next;
-				}
 			}
 			return B_OK;
 
 		case BTimedEventQueue::B_AT_TIME:
-			{
-				bool found_time = false;
-				for (entry = fFirstEntry; entry; ) {
-					if (eventTime == entry->event.event_time) {
-						found_time = true;
-						if (eventType == BTimedEventQueue::B_ANY_EVENT || eventType == entry->event.type) {
-							CleanupEvent(&entry->event);
-							remove = entry;
-							entry = entry->next;
-							RemoveEntry(remove);
-						} else {
-							entry = entry->next;
-						}
-					} else if (found_time) {
-						break;
-					} else {
+		{
+			bool foundTime = false;
+			for (entry = fFirstEntry; entry; ) {
+				if (eventTime == entry->event.event_time) {
+					foundTime = true;
+					if (eventType == BTimedEventQueue::B_ANY_EVENT
+						|| eventType == entry->event.type) {
+						_CleanupEvent(&entry->event);
+						remove = entry;
 						entry = entry->next;
-					}
-				}
-				return B_OK;
+						_RemoveEntry(remove);
+					} else
+						entry = entry->next;
+				} else if (foundTime)
+					break;
+				else
+					entry = entry->next;
 			}
+			return B_OK;
+		}
 
 		case BTimedEventQueue::B_AFTER_TIME:
-			for (entry = GetStart_AfterTime(eventTime, inclusive); entry; ) {
-				if (eventType == BTimedEventQueue::B_ANY_EVENT || eventType == entry->event.type) {
-					CleanupEvent(&entry->event);
+			for (entry = _GetStartAfterTime(eventTime, inclusive); entry; ) {
+				if (eventType == BTimedEventQueue::B_ANY_EVENT
+					|| eventType == entry->event.type) {
+					_CleanupEvent(&entry->event);
 					remove = entry;
 					entry = entry->next;
-					RemoveEntry(remove);
-				} else {
+					_RemoveEntry(remove);
+				} else
 					entry = entry->next;
-				}
 			}
 			return B_OK;
 	}
@@ -492,7 +505,8 @@ _event_queue_imp::FlushEvents(bigtime_t eventTime,
 
 
 void
-_event_queue_imp::SetCleanupHook(BTimedEventQueue::cleanup_hook hook, void *context)
+_event_queue_imp::SetCleanupHook(BTimedEventQueue::cleanup_hook hook,
+	void* context)
 {
 	BAutolock lock(fLock);
 	fCleanupHookContext = context;
@@ -501,36 +515,36 @@ _event_queue_imp::SetCleanupHook(BTimedEventQueue::cleanup_hook hook, void *cont
 
 
 void
-_event_queue_imp::RemoveEntry(event_queue_entry *entry)
+_event_queue_imp::_RemoveEntry(event_queue_entry* entry)
 {
-	//remove the entry from double-linked list
-	//and delete it
-	if (entry->prev != NULL)
-		(entry->prev)->next = entry->next;
+	// remove the entry from double-linked list and delete it
+	if (entry->previous != NULL)
+		(entry->previous)->next = entry->next;
 	if (entry->next != NULL)
-		(entry->next)->prev = entry->prev;
+		(entry->next)->previous = entry->previous;
 	if (entry == fFirstEntry) {
 		fFirstEntry = entry->next;
 		if (fFirstEntry != NULL)
-			fFirstEntry->prev = NULL;
+			fFirstEntry->previous = NULL;
 	}
 	if (entry == fLastEntry) {
-		fLastEntry = entry->prev;
+		fLastEntry = entry->previous;
 		if (fLastEntry != NULL)
 			fLastEntry->next = NULL;
 	}
 	delete entry;
 	fEventCount--;
 	ASSERT(fEventCount >= 0);
-	ASSERT(fEventCount != 0 || ((fFirstEntry == NULL) && (fLastEntry == NULL)));
+	ASSERT(fEventCount != 0
+		|| ((fFirstEntry == NULL) && (fLastEntry == NULL)));
 }
 
 
 void
-_event_queue_imp::CleanupEvent(media_timed_event *event)
+_event_queue_imp::_CleanupEvent(media_timed_event* event)
 {
-	//perform the cleanup action required
-	//when deleting an event from the queue
+	// perform the cleanup action required
+	// when deleting an event from the queue
 
 	//BeBook says:
 	//	Each event has a cleanup flag associated with it that indicates
@@ -561,13 +575,16 @@ _event_queue_imp::CleanupEvent(media_timed_event *event)
 
 	if (event->cleanup == BTimedEventQueue::B_NO_CLEANUP) {
 		// do nothing
-	} else if (event->type == BTimedEventQueue::B_HANDLE_BUFFER && event->cleanup == BTimedEventQueue::B_RECYCLE_BUFFER) {
-		((BBuffer *)event->pointer)->Recycle();
-		DEBUG_ONLY(*const_cast<void **>(&event->pointer) = NULL);
+	} else if (event->type == BTimedEventQueue::B_HANDLE_BUFFER
+		&& event->cleanup == BTimedEventQueue::B_RECYCLE_BUFFER) {
+		((BBuffer*)event->pointer)->Recycle();
+		DEBUG_ONLY(*const_cast<void**>(&event->pointer) = NULL);
 	} else if (event->cleanup == BTimedEventQueue::B_EXPIRE_TIMER) {
 		// call TimerExpired() on the event->data
-		debugger("BTimedEventQueue cleanup: calling TimerExpired() should be implemented here\n");
-	} else if (event->cleanup == B_DELETE || event->cleanup >= BTimedEventQueue::B_USER_CLEANUP) {
+		debugger("BTimedEventQueue cleanup: calling TimerExpired() should be "
+			"implemented here\n");
+	} else if (event->cleanup == B_DELETE
+		|| event->cleanup >= BTimedEventQueue::B_USER_CLEANUP) {
 		if (fCleanupHook)
 			(*fCleanupHook)(event,fCleanupHookContext);
 	} else {
@@ -577,15 +594,16 @@ _event_queue_imp::CleanupEvent(media_timed_event *event)
 }
 
 
-_event_queue_imp::event_queue_entry *
-_event_queue_imp::GetEnd_BeforeTime(bigtime_t eventTime, bool inclusive)
+_event_queue_imp::event_queue_entry*
+_event_queue_imp::_GetEndBeforeTime(bigtime_t eventTime, bool inclusive)
 {
-	event_queue_entry *entry;
+	event_queue_entry* entry;
 
 	entry = fLastEntry;
 	while (entry) {
-		if ((entry->event.event_time > eventTime) || (!inclusive && entry->event.event_time == eventTime))
-			entry = entry->prev;
+		if ((entry->event.event_time > eventTime)
+			|| (!inclusive && entry->event.event_time == eventTime))
+			entry = entry->previous;
 		else
 			break;
 	}
@@ -593,14 +611,15 @@ _event_queue_imp::GetEnd_BeforeTime(bigtime_t eventTime, bool inclusive)
 }
 
 
-_event_queue_imp::event_queue_entry *
-_event_queue_imp::GetStart_AfterTime(bigtime_t eventTime, bool inclusive)
+_event_queue_imp::event_queue_entry*
+_event_queue_imp::_GetStartAfterTime(bigtime_t eventTime, bool inclusive)
 {
-	event_queue_entry *entry;
+	event_queue_entry* entry;
 
 	entry = fFirstEntry;
 	while (entry) {
-		if ((entry->event.event_time < eventTime) || (!inclusive && entry->event.event_time == eventTime))
+		if ((entry->event.event_time < eventTime)
+			|| (!inclusive && entry->event.event_time == eventTime))
 			entry = entry->next;
 		else
 			break;
@@ -610,17 +629,20 @@ _event_queue_imp::GetStart_AfterTime(bigtime_t eventTime, bool inclusive)
 
 
 #if DEBUG > 1
+
 void
 _event_queue_imp::Dump() const
 {
-	TRACE("fEventCount = 0x%x\n",(int)fEventCount);
-	TRACE("fFirstEntry = 0x%x\n",(int)fFirstEntry);
-	TRACE("fLastEntry  = 0x%x\n",(int)fLastEntry);
-	for (event_queue_entry *entry = fFirstEntry; entry; entry = entry->next) {
-		TRACE("entry = 0x%x\n",(int)entry);
-		TRACE("  entry.prev = 0x%x\n",(int)entry->prev);
-		TRACE("  entry.next = 0x%x\n",(int)entry->next);
-		TRACE("  entry.event.event_time = 0x%x\n",(int)entry->event.event_time);
+	TRACE("fEventCount = 0x%x\n", (int)fEventCount);
+	TRACE("fFirstEntry = 0x%x\n", (int)fFirstEntry);
+	TRACE("fLastEntry  = 0x%x\n", (int)fLastEntry);
+	for (event_queue_entry* entry = fFirstEntry; entry; entry = entry->next) {
+		TRACE("entry = 0x%x\n", (int)entry);
+		TRACE("  entry.previous = 0x%x\n", (int)entry->previous);
+		TRACE("  entry.next     = 0x%x\n", (int)entry->next);
+		TRACE("  entry.event.event_time = 0x%x\n",
+			(int)entry->event.event_time);
 	}
 }
+
 #endif

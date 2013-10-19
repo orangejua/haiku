@@ -15,7 +15,7 @@ struct media_timed_event {
 								media_timed_event(bigtime_t inTime,
 									int32 inType);
 								media_timed_event(bigtime_t inTime,
-									int32 inType, void*inPointer,
+									int32 inType, void* inPointer,
 									uint32 inCleanup);
 								media_timed_event(
 									bigtime_t inTime, int32 inType,
@@ -46,7 +46,7 @@ struct media_timed_event {
 bool operator==(const media_timed_event& a, const media_timed_event& b);
 bool operator!=(const media_timed_event& a, const media_timed_event& b);
 bool operator<(const media_timed_event& a, const media_timed_event& b);
-bool operator>(const media_timed_event& a, const media_timed_event&b);
+bool operator>(const media_timed_event& a, const media_timed_event& b);
 
 
 /*!	A priority queue for holding media_timed_events. Sorts by increasing time,
@@ -180,7 +180,7 @@ private:
 	virtual	status_t			_Reserved_BTimedEventQueue_23(void*, ...);
 
 private:
-			_event_queue_imp* 	fImp;
+			_event_queue_imp* 	fImplementation;
 
 			uint32 				_reserved_timed_event_queue_[6];
 };

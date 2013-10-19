@@ -190,8 +190,8 @@ protected:
 	// When you've handled a stop request, call this function. If anyone is
 	// listening for stop information from you, they will be notified.
 	// Especially important for offline capable Nodes.
-			status_t			NodeStopped(bigtime_t performanceTime);
-			void				TimerExpired(bigtime_t notifyPerformanceTime,
+			status_t			NodeStopped(bigtime_t whenPerformanceTime);
+			void				TimerExpired(bigtime_t notifyPoint,
 									int32 cookie, status_t error = B_OK);
 
 	// NOTE: Constructor initializes the reference count to 1.
@@ -239,7 +239,7 @@ public:
 protected:
 	// Hook method which is called when requests have completed, or failed.
 	virtual	status_t			RequestCompleted(
-									const media_request_info & info);
+									const media_request_info& info);
 
 	virtual	status_t			DeleteHook(BMediaNode* node);
 
@@ -250,7 +250,7 @@ public:
 	// Fill out your attributes in the provided array, returning however
 	// many you have.
 	virtual	status_t			GetNodeAttributes(
-									media_node_attribute* _attributes,
+									media_node_attribute* outAttributes,
 									size_t inMaxCount);
 
 	virtual	status_t			AddTimer(bigtime_t atPerformanceTime,
@@ -334,7 +334,7 @@ protected:
 		// for use by BBufferConsumer, mostly
 
 private:
-	// NOTE: Dont' rename this one, it's static and needed for binary
+	// NOTE: Don't rename this one, it's static and needed for binary
 	// compatibility
 	static	int32 _m_changeTag;
 		// not to be confused with _mChangeCount

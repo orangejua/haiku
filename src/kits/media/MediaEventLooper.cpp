@@ -28,26 +28,13 @@
  */
 
 #include <MediaEventLooper.h>
-#include <TimeSource.h>
-#include <scheduler.h>
+
 #include <Buffer.h>
+#include <scheduler.h>
+#include <TimeSource.h>
+
 #include "debug.h"
 
-/*************************************************************
- * protected BMediaEventLooper
- *************************************************************/
-
-/* virtual */
-BMediaEventLooper::~BMediaEventLooper()
-{
-	CALLED();
-
-	// don't call Quit(); here, except if the user was stupid
-	if (fControlThread != -1) {
-		printf("You MUST call BMediaEventLooper::Quit() in your destructor!\n");
-		Quit();
-	}
-}
 
 /* explicit */
 BMediaEventLooper::BMediaEventLooper(uint32 apiVersion) :
@@ -67,6 +54,24 @@ BMediaEventLooper::BMediaEventLooper(uint32 apiVersion) :
 	fRealTimeQueue.SetCleanupHook(BMediaEventLooper::_CleanUpEntry, this);
 }
 
+
+/* virtual */
+BMediaEventLooper::~BMediaEventLooper()
+{
+	CALLED();
+
+	// don't call Quit(); here, except if the user was stupid
+	if (fControlThread != -1) {
+		printf("You MUST call BMediaEventLooper::Quit() in your "
+			"destructor!\n");
+		Quit();
+	}
+}
+
+
+// #pragma mark - BMediaNode interface
+
+
 /* virtual */ void
 BMediaEventLooper::NodeRegistered()
 {
@@ -80,22 +85,26 @@ BMediaEventLooper::NodeRegistered()
 
 
 /* virtual */ void
-BMediaEventLooper::Start(bigtime_t performance_time)
+BMediaEventLooper::Start(bigtime_t performanceTime)
 {
 	CALLED();
+	// <BeBook>
 	// This hook function is called when a node is started
 	// by a call to the BMediaRoster. The specified
 	// performanceTime, the time at which the node
 	// should start running, may be in the future.
-	fEventQueue.AddEvent(media_timed_event(performance_time, BTimedEventQueue::B_START));
+	// </BeBook>	
+	fEventQueue.AddEvent(media_timed_event(performanceTime,
+		BTimedEventQueue::B_START));
 }
 
 
 /* virtual */ void
-BMediaEventLooper::Stop(bigtime_t performance_time,
+BMediaEventLooper::Stop(bigtime_t performanceTime,
 						bool immediate)
 {
 	CALLED();
+	// <BeBook>
 	// This hook function is called when a node is stopped
 	// by a call to the BMediaRoster. The specified performanceTime,
 	// the time at which the node should stop, may be in the future.
@@ -104,60 +113,71 @@ BMediaEventLooper::Stop(bigtime_t performance_time,
 	// you're promising not to write into any BBuffers you may have
 	// received from your downstream consumers, and you promise not
 	// to send any more buffers until Start() is called again.
+	// </BeBook>
 
 	if (immediate) {
-		// always be sure to add to the front of the queue so we can make sure it is
-		// handled before any buffers are sent!
-		performance_time = 0;
+		// always be sure to add to the front of the queue so we can make
+		// sure it is handled before any buffers are sent!
+		performanceTime = 0;
 	}
-	fEventQueue.AddEvent(media_timed_event(performance_time, BTimedEventQueue::B_STOP));
+	fEventQueue.AddEvent(media_timed_event(performanceTime,
+		BTimedEventQueue::B_STOP));
 }
 
 
 /* virtual */ void
-BMediaEventLooper::Seek(bigtime_t media_time,
-						bigtime_t performance_time)
+BMediaEventLooper::Seek(bigtime_t mediaTime,
+						bigtime_t performanceTime)
 {
 	CALLED();
+	// <BeBook>
 	// This hook function is called when a node is asked to seek to
 	// the specified mediaTime by a call to the BMediaRoster.
 	// The specified performanceTime, the time at which the node
 	// should begin the seek operation, may be in the future.
-	fEventQueue.AddEvent(media_timed_event(performance_time, BTimedEventQueue::B_SEEK, NULL,
-		BTimedEventQueue::B_NO_CLEANUP, 0, media_time, NULL));
+	// </BeBook>
+	fEventQueue.AddEvent(media_timed_event(performanceTime,
+		BTimedEventQueue::B_SEEK, NULL, BTimedEventQueue::B_NO_CLEANUP,
+		0, mediaTime, NULL));
 }
 
 
 /* virtual */ void
-BMediaEventLooper::TimeWarp(bigtime_t at_real_time,
-							bigtime_t to_performance_time)
+BMediaEventLooper::TimeWarp(bigtime_t atRealTime,
+							bigtime_t toPerformanceTime)
 {
 	CALLED();
+	// <BeBook>
 	// This hook function is called when the time source to which the
 	// node is slaved is repositioned (via a seek operation) such that
 	// there will be a sudden jump in the performance time progression
 	// as seen by the node. The to_performance_time argument indicates
 	// the new performance time; the change should occur at the real
 	// time specified by the at_real_time argument.
+	// </BeBook>
 
 	// place in the realtime queue
-	fRealTimeQueue.AddEvent(media_timed_event(at_real_time,	BTimedEventQueue::B_WARP,
-		NULL, BTimedEventQueue::B_NO_CLEANUP, 0, to_performance_time, NULL));
+	fRealTimeQueue.AddEvent(media_timed_event(atRealTime,
+		BTimedEventQueue::B_WARP, NULL, BTimedEventQueue::B_NO_CLEANUP, 0,
+		toPerformanceTime, NULL));
 
-	// BeBook: Your implementation of TimeWarp() should call through to BMediaNode::TimeWarp()
-	// BeBook: as well as all other inherited forms of TimeWarp()
+	// <BeBook>
+	// Your implementation of TimeWarp() should call through to
+	// BMediaNode::TimeWarp() as well as all other inherited forms
+	// of TimeWarp()
+	// </BeBook>
 	// XXX should we do this here?
-	BMediaNode::TimeWarp(at_real_time, to_performance_time);
+	BMediaNode::TimeWarp(atRealTime, toPerformanceTime);
 }
 
 
 /* virtual */ status_t
-BMediaEventLooper::AddTimer(bigtime_t at_performance_time,
+BMediaEventLooper::AddTimer(bigtime_t atPerformanceTime,
 							int32 cookie)
 {
 	CALLED();
 	// XXX what do we need to do here?
-	return BMediaNode::AddTimer(at_performance_time,cookie);
+	return BMediaNode::AddTimer(atPerformanceTime, cookie);
 }
 
 
@@ -165,16 +185,18 @@ BMediaEventLooper::AddTimer(bigtime_t at_performance_time,
 BMediaEventLooper::SetRunMode(run_mode mode)
 {
 	CALLED();
-	// The SetRunMode() hook function is called when someone requests that your node's run mode be changed.
+	// The SetRunMode() hook function is called when someone requests that your
+	// node's run mode be changed.
 
 	// bump or reduce priority when switching from/to offline run mode
-	int32 priority;
-	priority = (mode == B_OFFLINE) ? min_c(B_NORMAL_PRIORITY, fSetPriority) : fSetPriority;
+	int32 priority = (mode == B_OFFLINE) ?
+		min_c(B_NORMAL_PRIORITY, fSetPriority) : fSetPriority;
 	if (priority != fCurrentPriority) {
 		fCurrentPriority = priority;
 		if (fControlThread > 0) {
 			set_thread_priority(fControlThread, fCurrentPriority);
-			fSchedulingLatency = estimate_max_scheduling_latency(fControlThread);
+			fSchedulingLatency =
+				estimate_max_scheduling_latency(fControlThread);
 			printf("BMediaEventLooper: SchedulingLatency is %" B_PRId64 "\n",
 				fSchedulingLatency);
 		}
@@ -184,13 +206,19 @@ BMediaEventLooper::SetRunMode(run_mode mode)
 }
 
 
+// #pragma mark - BMediaEventLooper hook functions
+
+
 /* virtual */ void
-BMediaEventLooper::CleanUpEvent(const media_timed_event *event)
+BMediaEventLooper::CleanUpEvent(const media_timed_event* event)
 {
 	CALLED();
+	// <BeBook>
 	// Implement this function to clean up after custom events you've created
 	// and added to your queue. It's called when a custom event is removed from
-	// the queue, to let you handle any special tidying-up that the event might require.
+	// the queue, to let you handle any special tidying-up that the event might
+	// require.
+	// </BeBook>
 }
 
 
@@ -207,67 +235,81 @@ BMediaEventLooper::ControlLoop()
 {
 	CALLED();
 
-	bool is_realtime = false;
-	status_t err;
+	bool isRealtime = false;
+	status_t status;
 	bigtime_t latency;
-	bigtime_t waituntil;
+	bigtime_t waitUntil;
 	for (;;) {
 		// while there are no events or it is not time for the earliest event,
-		// process messages using WaitForMessages. Whenever this funtion times out,
-		// we need to handle the next event
+		// process messages using WaitForMessages. Whenever this funtion times
+		// out, we need to handle the next event
 		for (;;) {
 			if (RunState() == B_QUITTING)
 				return;
-			// BMediaEventLooper compensates your performance time by adding the event latency
-			// (see SetEventLatency()) and the scheduling latency (or, for real-time events,
-			// only the scheduling latency).
+				
+			// <BeBook>
+			// BMediaEventLooper compensates your performance time by adding
+			// the event latency (see SetEventLatency()) and the scheduling
+			// latency (or, for real-time events, only the scheduling latency).
+			// </BeBook>
 
 			latency = fEventLatency + fSchedulingLatency;
-			if (fEventQueue.HasEvents() && (TimeSource()->Now() - latency) >= fEventQueue.FirstEventTime()) {
-//				printf("node %02d waiting for %12Ld that has already happened, now %12Ld\n", ID(), fEventQueue.FirstEventTime(), system_time());
-				is_realtime = false;
+			if (fEventQueue.HasEvents()
+				&& TimeSource()->Now() - latency
+					>= fEventQueue.FirstEventTime()) {
+//				printf("node %02d waiting for %12Ld that has already happened,"
+//					" now %12Ld\n", ID(), fEventQueue.FirstEventTime(),
+//					system_time());
+				isRealtime = false;
 				break;
 			}
-			if (fRealTimeQueue.HasEvents() && (TimeSource()->RealTime() - fSchedulingLatency) >= fRealTimeQueue.FirstEventTime()) {
+			if (fRealTimeQueue.HasEvents()
+				&& TimeSource()->RealTime() - fSchedulingLatency
+					>= fRealTimeQueue.FirstEventTime()) {
 				latency = fSchedulingLatency;
-				is_realtime = true;
+				isRealtime = true;
 				break;
 			}
-			waituntil = B_INFINITE_TIMEOUT;
+			waitUntil = B_INFINITE_TIMEOUT;
 			if (fEventQueue.HasEvents()) {
-				waituntil = TimeSource()->RealTimeFor(fEventQueue.FirstEventTime(), latency);
-//				printf("node %02d waiting for %12Ld that will happen at %12Ld\n", ID(), fEventQueue.FirstEventTime(), waituntil);
-				is_realtime = false;
+				waitUntil = TimeSource()->RealTimeFor(
+					fEventQueue.FirstEventTime(), latency);
+//				printf("node %02d waiting for %12Ld that will happen at "
+//					"%12Ld\n", ID(), fEventQueue.FirstEventTime(), waitUntil);
+				isRealtime = false;
 			}
 			if (fRealTimeQueue.HasEvents()) {
 				bigtime_t temp;
 				temp = fRealTimeQueue.FirstEventTime() - fSchedulingLatency;
-				if (temp < waituntil) {
-					waituntil = temp;
-					is_realtime = true;
+				if (temp < waitUntil) {
+					waitUntil = temp;
+					isRealtime = true;
 					latency = fSchedulingLatency;
 				}
 			}
-			err = WaitForMessage(waituntil);
-			if (err == B_TIMED_OUT)
+			status = WaitForMessage(waitUntil);
+			if (status == B_TIMED_OUT)
 				break;
 		}
-		/// we have timed out - so handle the next event
+		// we have timed out - so handle the next event
 		media_timed_event event;
-		if (is_realtime)
-			err = fRealTimeQueue.RemoveFirstEvent(&event);
+		if (isRealtime)
+			status = fRealTimeQueue.RemoveFirstEvent(&event);
 		else
-			err = fEventQueue.RemoveFirstEvent(&event);
+			status = fEventQueue.RemoveFirstEvent(&event);
 
-//		printf("node %02d handling    %12Ld  at %12Ld\n", ID(), event.event_time, system_time());
+//		printf("node %02d handling    %12Ld  at %12Ld\n", ID(),
+//			event.event_time, system_time());
 
-		if (err == B_OK) {
+		if (status == B_OK) {
 			bigtime_t lateness;
-			if (is_realtime)
+			if (isRealtime)
 				lateness = TimeSource()->RealTime() - event.event_time;
 			else
-				lateness = TimeSource()->RealTime() - TimeSource()->RealTimeFor(event.event_time, 0) + fEventLatency;
-			DispatchEvent(&event, lateness, is_realtime);
+				lateness = TimeSource()->RealTime()
+					- TimeSource()->RealTimeFor(event.event_time, 0)
+					+ fEventLatency;
+			DispatchEvent(&event, lateness, isRealtime);
 		}
 	}
 }
@@ -280,12 +322,11 @@ BMediaEventLooper::ControlThread()
 	return fControlThread;
 }
 
-/*************************************************************
- * protected BMediaEventLooper
- *************************************************************/
+
+// #pragma mark - protected BMediaEventLooper
 
 
-BTimedEventQueue *
+BTimedEventQueue*
 BMediaEventLooper::EventQueue()
 {
 	CALLED();
@@ -293,7 +334,7 @@ BMediaEventLooper::EventQueue()
 }
 
 
-BTimedEventQueue *
+BTimedEventQueue*
 BMediaEventLooper::RealTimeQueue()
 {
 	CALLED();
@@ -354,7 +395,8 @@ BMediaEventLooper::SetPriority(int32 priority)
 		priority = 120;
 
 	fSetPriority = priority;
-	fCurrentPriority = (RunMode() == B_OFFLINE) ? min_c(B_NORMAL_PRIORITY, fSetPriority) : fSetPriority;
+	fCurrentPriority = (RunMode() == B_OFFLINE) ?
+		min_c(B_NORMAL_PRIORITY, fSetPriority) : fSetPriority;
 
 	if (fControlThread > 0) {
 		set_thread_priority(fControlThread, fCurrentPriority);
@@ -417,12 +459,14 @@ BMediaEventLooper::Run()
 	if (fControlThread != -1)
 		return; // thread already running
 
-	// until now, the run state is B_UNREGISTERED, but we need to start in B_STOPPED state.
+	// until now, the run state is B_UNREGISTERED, but we need to start in
+	// B_STOPPED state.
 	SetRunState(B_STOPPED);
 
 	char threadName[32];
 	sprintf(threadName, "%.20s control", Name());
-	fControlThread = spawn_thread(_ControlThreadStart, threadName, fCurrentPriority, this);
+	fControlThread = spawn_thread(_ControlThreadStart, threadName,
+		fCurrentPriority, this);
 	resume_thread(fControlThread);
 
 	// get latency information
@@ -443,8 +487,8 @@ BMediaEventLooper::Quit()
 	SetRunState(B_QUITTING);
 	close_port(ControlPort());
 	if (fControlThread != -1) {
-		status_t err;
-		wait_for_thread(fControlThread, &err);
+		status_t status;
+		wait_for_thread(fControlThread, &status);
 		fControlThread = -1;
 	}
 	SetRunState(B_TERMINATED);
@@ -452,7 +496,7 @@ BMediaEventLooper::Quit()
 
 
 void
-BMediaEventLooper::DispatchEvent(const media_timed_event *event,
+BMediaEventLooper::DispatchEvent(const media_timed_event* event,
 								 bigtime_t lateness,
 								 bool realTimeEvent)
 {
@@ -484,33 +528,32 @@ BMediaEventLooper::DispatchEvent(const media_timed_event *event,
 	_DispatchCleanUp(event);
 }
 
-/*************************************************************
- * private BMediaEventLooper
- *************************************************************/
+
+// #pragma mark - private BMediaEventLooper
 
 
 /* static */ int32
-BMediaEventLooper::_ControlThreadStart(void *arg)
+BMediaEventLooper::_ControlThreadStart(void* arg)
 {
 	CALLED();
-	((BMediaEventLooper *)arg)->SetRunState(B_STOPPED);
-	((BMediaEventLooper *)arg)->ControlLoop();
-	((BMediaEventLooper *)arg)->SetRunState(B_QUITTING);
+	((BMediaEventLooper*)arg)->SetRunState(B_STOPPED);
+	((BMediaEventLooper*)arg)->ControlLoop();
+	((BMediaEventLooper*)arg)->SetRunState(B_QUITTING);
 	return 0;
 }
 
 
 /* static */ void
-BMediaEventLooper::_CleanUpEntry(const media_timed_event *event,
-								 void *context)
+BMediaEventLooper::_CleanUpEntry(const media_timed_event* event,
+								 void* context)
 {
 	PRINT(6, "CALLED BMediaEventLooper::_CleanUpEntry()\n");
-	((BMediaEventLooper *)context)->_DispatchCleanUp(event);
+	((BMediaEventLooper*)context)->_DispatchCleanUp(event);
 }
 
 
 void
-BMediaEventLooper::_DispatchCleanUp(const media_timed_event *event)
+BMediaEventLooper::_DispatchCleanUp(const media_timed_event* event)
 {
 	PRINT(6, "CALLED BMediaEventLooper::_DispatchCleanUp()\n");
 
@@ -519,19 +562,12 @@ BMediaEventLooper::_DispatchCleanUp(const media_timed_event *event)
 		CleanUpEvent(event);
 }
 
-/*
-// unimplemented
-BMediaEventLooper::BMediaEventLooper(const BMediaEventLooper &)
-BMediaEventLooper &BMediaEventLooper::operator=(const BMediaEventLooper &)
-*/
 
-/*************************************************************
- * protected BMediaEventLooper
- *************************************************************/
+// #pragma mark - protected BMediaEventLooper
 
 
 status_t
-BMediaEventLooper::DeleteHook(BMediaNode *node)
+BMediaEventLooper::DeleteHook(BMediaNode* node)
 {
 	CALLED();
 	// this is the DeleteHook that gets called by the media server
@@ -540,9 +576,15 @@ BMediaEventLooper::DeleteHook(BMediaNode *node)
 	return BMediaNode::DeleteHook(node);
 }
 
-/*************************************************************
- * private BMediaEventLooper
- *************************************************************/
+
+// #pragma mark - FBC padding and forbidden methods
+
+
+/*
+// unimplemented
+BMediaEventLooper::BMediaEventLooper(const BMediaEventLooper &)
+BMediaEventLooper &BMediaEventLooper::operator=(const BMediaEventLooper &)
+*/
 
 status_t BMediaEventLooper::_Reserved_BMediaEventLooper_0(int32 arg,...) { return B_ERROR; }
 status_t BMediaEventLooper::_Reserved_BMediaEventLooper_1(int32 arg,...) { return B_ERROR; }
@@ -568,4 +610,3 @@ status_t BMediaEventLooper::_Reserved_BMediaEventLooper_20(int32 arg,...) { retu
 status_t BMediaEventLooper::_Reserved_BMediaEventLooper_21(int32 arg,...) { return B_ERROR; }
 status_t BMediaEventLooper::_Reserved_BMediaEventLooper_22(int32 arg,...) { return B_ERROR; }
 status_t BMediaEventLooper::_Reserved_BMediaEventLooper_23(int32 arg,...) { return B_ERROR; }
-
