@@ -1147,27 +1147,22 @@ MultiAudioNode::_HandleBuffer(const media_timed_event* event,
 		return B_MEDIA_BAD_DESTINATION;
 	}
 
-	bigtime_t now = TimeSource()->Now();
-	bigtime_t performanceTime = buffer->Header()->start_time;
-
-	// the how_early calculate here doesn't include scheduling latency because
-	// we've already been scheduled to handle the buffer
-	bigtime_t howEarly = performanceTime - EventLatency() - now;
-
 	// if the buffer is late, we ignore it and report the fact to the producer
 	// who sent it to us
-	if (RunMode() != B_OFFLINE && RunMode() != B_RECORDING && howEarly < 0LL) {
+	if (RunMode() != B_OFFLINE && RunMode() != B_RECORDING && lateness > 0) {
 		// lateness doesn't matter in offline mode or in recording mode
 		//mLateBuffers++;
-		NotifyLateProducer(channel->fInput.source, -howEarly, performanceTime);
-		fprintf(stderr,"	<- LATE BUFFER : %" B_PRIdBIGTIME "\n", howEarly);
+		NotifyLateProducer(channel->fInput.source, lateness,
+			buffer->Header()->start_time);
+		fprintf(stderr,"	<- LATE BUFFER : %" B_PRIdBIGTIME "\n", lateness);
 		buffer->Recycle();
 	} else {
 		//WriteBuffer(buffer, *channel);
 		// TODO: This seems like a very fragile mechanism to wait until
 		// the previous buffer for this channel has been processed...
 		if (channel->fBuffer != NULL) {
-			PRINT(("MultiAudioNode::HandleBuffer snoozing recycling channelId : %li, how_early:%Ld\n", channel->fChannelId, howEarly));
+			PRINT(("MultiAudioNode::HandleBuffer snoozing recycling channelId "
+				": %li, lateness:%Ld\n", channel->fChannelId, lateness));
 			//channel->fBuffer->Recycle();
 			snooze(100);
 			if (channel->fBuffer != NULL)
@@ -1175,7 +1170,8 @@ MultiAudioNode::_HandleBuffer(const media_timed_event* event,
 			else
 				channel->fBuffer = buffer;
 		} else {
-			//PRINT(("MultiAudioNode::HandleBuffer writing channelId : %li, how_early:%Ld\n", channel->fChannelId, howEarly));
+			//PRINT(("MultiAudioNode::HandleBuffer writing channelId : %li, "
+			//	"lateness:%Ld\n", channel->fChannelId, lateness));
 			channel->fBuffer = buffer;
 		}
 	}
