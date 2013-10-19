@@ -487,34 +487,39 @@ SoundPlayNode::LateNoticeReceived(const media_source& what, bigtime_t howMuch,
 		return;
 	}
 
-	if (RunMode() != B_DROP_DATA) {
+	if (RunMode() == B_INCREASE_LATENCY) {
 		// We're late, and our run mode dictates that we try to produce buffers
 		// earlier in order to catch up.  This argues that the downstream nodes are
 		// not properly reporting their latency, but there's not much we can do about
 		// that at the moment, so we try to start producing buffers earlier to
 		// compensate.
 
-		fInternalLatency += howMuch;
+		if (fInternalLatency + SchedulingLatency() + howMuch
+			<= BufferDuration()) {
+			fInternalLatency += howMuch;
+			SetEventLatency(fLatency + fInternalLatency);
+			TRACE("SoundPlayNode::LateNoticeReceived: increasing latency to %"
+				B_PRId64 "\n", fLatency + fInternalLatency);
+			return;
+		}
 
-		if (fInternalLatency > 30000)	// avoid getting a too high latency
-			fInternalLatency = 30000;
-
-		SetEventLatency(fLatency + fInternalLatency);
-		TRACE("SoundPlayNode::LateNoticeReceived: increasing latency to %"
-			B_PRId64 "\n", fLatency + fInternalLatency);
-	} else {
-		// The other run modes dictate various strategies for sacrificing data quality
-		// in the interests of timely data delivery.  The way *we* do this is to skip
-		// a buffer, which catches us up in time by one buffer duration.
-
-		size_t nFrames = fOutput.format.u.raw_audio.buffer_size
-			/ ((fOutput.format.u.raw_audio.format & media_raw_audio_format::B_AUDIO_SIZE_MASK)
-			* fOutput.format.u.raw_audio.channel_count);
-
-		fFramesSent += nFrames;
-
-		TRACE("SoundPlayNode::LateNoticeReceived: skipping a buffer to try to catch up\n");
+		// When latency gets larger than buffer duration, we cannot keep up
+		// with the needed data rate anymore and must start dropping buffers.
+		SetRunMode(B_DROP_DATA);
 	}
+
+	// The other run modes dictate various strategies for sacrificing data quality
+	// in the interests of timely data delivery.  The way *we* do this is to skip
+	// a buffer, which catches us up in time by one buffer duration.
+
+	size_t nFrames = fOutput.format.u.raw_audio.buffer_size
+		/ ((fOutput.format.u.raw_audio.format
+			& media_raw_audio_format::B_AUDIO_SIZE_MASK)
+		* fOutput.format.u.raw_audio.channel_count);
+
+	fFramesSent += nFrames;
+
+	TRACE("SoundPlayNode::LateNoticeReceived: skipping a buffer to try to catch up\n");
 }
 
 
