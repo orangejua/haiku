@@ -47,7 +47,8 @@ BMediaEventLooper::BMediaEventLooper(uint32 apiVersion) :
 	fSchedulingLatency(0),
 	fBufferDuration(0),
 	fOfflineTime(0),
-	fApiVersion(apiVersion)
+	fApiVersion(apiVersion),
+	fRequestedRunMode(B_INCREASE_LATENCY)
 {
 	CALLED();
 	fEventQueue.SetCleanupHook(BMediaEventLooper::_CleanUpEntry, this);
@@ -201,6 +202,8 @@ BMediaEventLooper::SetRunMode(run_mode mode)
 				fSchedulingLatency);
 		}
 	}
+
+	fRequestedRunMode = mode;
 
 	BMediaNode::SetRunMode(mode);
 }
@@ -469,6 +472,8 @@ BMediaEventLooper::SetEventLatency(bigtime_t latency)
 		latency, latency - fEventLatency);
 
 	fEventLatency = latency;
+
+	_AdjustRunMode();
 }
 
 
@@ -477,6 +482,8 @@ BMediaEventLooper::SetBufferDuration(bigtime_t duration)
 {
 	CALLED();
 	fBufferDuration = duration;
+
+	_AdjustRunMode();
 }
 
 
@@ -611,6 +618,25 @@ BMediaEventLooper::DeleteHook(BMediaNode* node)
 	// before the media node is deleted
 	Quit();
 	return BMediaNode::DeleteHook(node);
+}
+
+
+// #pragma mark - private BMediaEventLooper
+
+
+void
+BMediaEventLooper::_AdjustRunMode()
+{
+	if (RunMode() != B_OFFLINE &&
+		fEventLatency + fSchedulingLatency > BufferDuration()) {
+		// We cannot keep up timely processing anymore. We must start dropping
+		// buffers to not mess up timing of downstream nodes.
+		BMediaNode::SetRunMode(B_DROP_DATA);
+	} else if (RunMode() != fRequestedRunMode) {
+		// We can meet the timing constraints again, go back to originally
+		// requested runmode.
+		BMediaNode::SetRunMode(fRequestedRunMode);
+	}
 }
 
 

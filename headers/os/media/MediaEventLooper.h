@@ -154,8 +154,15 @@ private:
 	virtual	status_t 			_Reserved_BMediaEventLooper_22(int32 arg, ...);
 	virtual	status_t 			_Reserved_BMediaEventLooper_23(int32 arg, ...);
 
+private:
+			run_mode			fRequestedRunMode;
+
+private:
+			void				_AdjustRunMode();
+
+private:
 	bool						_reserved_bool_[4];
-	uint32						_reserved_BMediaEventLooper_[12];
+	uint32						_reserved_BMediaEventLooper_[11];
 };
 
 #endif // _MEDIA_EVENT_LOOPER_H
