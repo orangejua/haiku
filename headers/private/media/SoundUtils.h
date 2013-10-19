@@ -31,7 +31,7 @@ int buffers_for_duration(const media_raw_audio_format & format,
 //	This is a common hook function interface for
 //	SoundConsumer and SoundProducer to use.
 typedef void (*SoundProcessFunc)(void * cookie,
-	bigtime_t timestamp, void * data, size_t datasize,
+	perf_time_t timestamp, void * data, size_t datasize,
 	const media_raw_audio_format & format);
 typedef void (*SoundNotifyFunc)(void * cookie,
 	int32 code, ...);
@@ -47,7 +47,7 @@ enum {
 	B_DISCONNECTED,			//
 	B_FORMAT_CHANGED,		//	media_raw_audio_format*
 	B_NODE_DIES,			//	node will die!
-	B_HOOKS_CHANGED,		//	
+	B_HOOKS_CHANGED,		//
 	B_OP_TIMED_OUT,			//	timeout that expired -- Consumer only
 	B_PRODUCER_DATA_STATUS,	//	status performance_time -- Consumer only
 	B_LATE_NOTICE			//	how_much performance_time -- Producer only

@@ -232,7 +232,7 @@ WebChanged(const media_node& node)
 
 
 status_t
-NewParameterValue(const media_node& node, int32 parameterID, bigtime_t when,
+NewParameterValue(const media_node& node, int32 parameterID, perf_time_t when,
 	const void* param, size_t paramsize)
 {
 	CALLED();
@@ -262,7 +262,7 @@ FlavorsChanged(media_addon_id addOnID, int32 newCount, int32 goneCount)
 
 
 void
-NodeStopped(const media_node& node, bigtime_t when)
+NodeStopped(const media_node& node, perf_time_t when)
 {
 	CALLED();
 	BMessage msg(MEDIA_SERVER_SEND_NOTIFICATIONS);

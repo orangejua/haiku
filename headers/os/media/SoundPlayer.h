@@ -92,12 +92,12 @@ public:
 	typedef int32 play_id;
 
 			bigtime_t			CurrentTime();
-			bigtime_t			PerformanceTime();
+			perf_time_t			PerformanceTime();
 			status_t			Preroll();
 			play_id				StartPlaying(BSound* sound,
-									bigtime_t atTime = 0);
+									perf_time_t atTime = 0);
 			play_id 			StartPlaying(BSound* sound,
-									bigtime_t atTime,
+									perf_time_t atTime,
 									float withVolume);
 			status_t 			SetSoundVolume(play_id sound, float newVolume);
 			bool 				IsPlaying(play_id id);
@@ -173,7 +173,7 @@ private:
 
 	struct waiting_sound {
 		waiting_sound*	next;
-		bigtime_t		start_time;
+		perf_time_t		start_time;
 		BSound*			sound;
 		play_id			id;
 		int32			rate;

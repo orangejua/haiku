@@ -215,16 +215,16 @@ public:
 			const char*			Kind() const;
 			const char*			Unit() const;
 			int32				ID() const;
-			
+
 			void				SetFlags(uint32 flags);
 			uint32				Flags() const;
-	
+
 	virtual	type_code			ValueType() = 0;
-	
+
 			status_t			GetValue(void* buffer, size_t* _size,
-									bigtime_t* _when);
+									perf_time_t* _when);
 			status_t			SetValue(const void* buffer, size_t size,
-									bigtime_t when);
+									perf_time_t when);
 
 			int32				CountChannels();
 			void				SetChannelCount(int32 count);
@@ -348,7 +348,7 @@ private:
 			response			fResponse;
 			float				fFactor;
 			float				fOffset;
-			
+
 			uint32				_reserved[8];
 };
 
@@ -394,7 +394,7 @@ private:
 private:
 			BList*				fSelections;
 			BList*				fValues;
-			
+
 			uint32				_reserved[8];
 };
 
@@ -431,7 +431,7 @@ private:
 
 private:
 			uint32				fMaxBytes;
-			
+
 			uint32				_reserved[8];
 };
 

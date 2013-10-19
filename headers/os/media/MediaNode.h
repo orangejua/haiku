@@ -190,8 +190,8 @@ protected:
 	// When you've handled a stop request, call this function. If anyone is
 	// listening for stop information from you, they will be notified.
 	// Especially important for offline capable Nodes.
-			status_t			NodeStopped(bigtime_t whenPerformanceTime);
-			void				TimerExpired(bigtime_t notifyPoint,
+			status_t			NodeStopped(perf_time_t whenPerformanceTime);
+			void				TimerExpired(perf_time_t notifyPoint,
 									int32 cookie, status_t error = B_OK);
 
 	// NOTE: Constructor initializes the reference count to 1.
@@ -206,14 +206,14 @@ protected:
 	// pending command of each type. Allowing an arbitrary number of
 	// outstanding commands might be nice, but apps cannot depend on that
 	// happening.
-	virtual	void				Start(bigtime_t atPerformanceTime);
-	virtual	void				Stop(bigtime_t atPerformanceTime,
+	virtual	void				Start(perf_time_t atPerformanceTime);
+	virtual	void				Stop(perf_time_t atPerformanceTime,
 									bool immediate);
 	virtual	void				Seek(bigtime_t toMediaTime,
-									bigtime_t atPerformanceTime);
+									perf_time_t atPerformanceTime);
 	virtual	void				SetRunMode(run_mode mode);
 	virtual	void				TimeWarp(bigtime_t atRealTime,
-									bigtime_t toPerformanceTime);
+									perf_time_t toPerformanceTime);
 	virtual	void				Preroll();
 	virtual	void				SetTimeSource(BTimeSource* timeSource);
 
@@ -253,7 +253,7 @@ public:
 									media_node_attribute* outAttributes,
 									size_t inMaxCount);
 
-	virtual	status_t			AddTimer(bigtime_t atPerformanceTime,
+	virtual	status_t			AddTimer(perf_time_t atPerformanceTime,
 									int32 cookie);
 
 private:

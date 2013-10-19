@@ -22,7 +22,7 @@ media_timed_event::media_timed_event()
 }
 
 
-media_timed_event::media_timed_event(bigtime_t inTime, int32 inType)
+media_timed_event::media_timed_event(perf_time_t inTime, int32 inType)
 {
 	CALLED();
 	memset(this, 0, sizeof(*this));
@@ -31,7 +31,7 @@ media_timed_event::media_timed_event(bigtime_t inTime, int32 inType)
 }
 
 
-media_timed_event::media_timed_event(bigtime_t inTime, int32 inType,
+media_timed_event::media_timed_event(perf_time_t inTime, int32 inType,
 	void* inPointer, uint32 inCleanup)
 {
 	CALLED();
@@ -43,7 +43,7 @@ media_timed_event::media_timed_event(bigtime_t inTime, int32 inType,
 }
 
 
-media_timed_event::media_timed_event(bigtime_t inTime, int32 inType,
+media_timed_event::media_timed_event(perf_time_t inTime, int32 inType,
 	void* inPointer, uint32 inCleanup, int32 inData, int64 inBigdata,
 	char* inUserData, size_t dataSize)
 {

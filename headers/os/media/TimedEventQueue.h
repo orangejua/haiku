@@ -12,13 +12,13 @@ struct _event_queue_imp;
 
 struct media_timed_event {
 								media_timed_event();
-								media_timed_event(bigtime_t inTime,
+								media_timed_event(perf_time_t inTime,
 									int32 inType);
-								media_timed_event(bigtime_t inTime,
+								media_timed_event(perf_time_t inTime,
 									int32 inType, void* inPointer,
 									uint32 inCleanup);
 								media_timed_event(
-									bigtime_t inTime, int32 inType,
+									perf_time_t inTime, int32 inType,
 									void* inPointer, uint32 inCleanup,
 									int32 inData, int64 inBigdata,
 									char* inUserData, size_t dataSize = 0);
@@ -31,7 +31,7 @@ struct media_timed_event {
 			// TODO: Should this not return "media_timed_event&" ?!
 			void				operator=(const media_timed_event& other);
 
-			bigtime_t			event_time;
+			perf_time_t			event_time;
 			int32				type;
 			void*				pointer;
 			uint32				cleanup;

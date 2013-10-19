@@ -35,14 +35,14 @@ protected:
 protected:
 	// BMediaNode interface
 	virtual	void				NodeRegistered();
-	virtual	void				Start(bigtime_t performanceTime);
-	virtual	void				Stop(bigtime_t performanceTime,
+	virtual	void				Start(perf_time_t performanceTime);
+	virtual	void				Stop(perf_time_t performanceTime,
 									bool immediate);
 	virtual	void				Seek(bigtime_t mediaTime,
-									bigtime_t performanceTime);
+									perf_time_t performanceTime);
 	virtual	void				TimeWarp(bigtime_t atRealTime,
-									bigtime_t toPerformanceTime);
-	virtual	status_t			AddTimer(bigtime_t atPerformanceTime,
+									perf_time_t toPerformanceTime);
+	virtual	status_t			AddTimer(perf_time_t atPerformanceTime,
 									int32 cookie);
 	virtual	void 				SetRunMode(run_mode mode);
 
@@ -61,7 +61,7 @@ protected:
 
 	// NOTE: Called in offline mode to determine the current time of the node.
 	// Update your internal information whenever it changes.
-	virtual	bigtime_t			OfflineTime();
+	virtual	perf_time_t			OfflineTime();
 
 	// NOTE: Override this method only if you know what you are doing!
 	// The default control loop function waits for messages, pops events
@@ -87,7 +87,7 @@ protected:
 			void				SetRunState(run_state state);
 			void				SetEventLatency(bigtime_t latency);
 			void				SetBufferDuration(bigtime_t duration);
-			void				SetOfflineTime(bigtime_t offTime);
+			void				SetOfflineTime(perf_time_t offTime);
 
 	// Spawns and resumes the control thread - must be called from
 	// NodeRegistered().
@@ -118,7 +118,7 @@ private:
 			bigtime_t			fEventLatency;
 			bigtime_t			fSchedulingLatency;
 			bigtime_t			fBufferDuration;
-			bigtime_t			fOfflineTime;
+			perf_time_t			fOfflineTime;
 			uint32				fApiVersion;
 
 protected:

@@ -387,7 +387,7 @@ BMediaTrack::ReadFrames(void* buffer, int64* _frameCount,
 		fCurrentFrame += *_frameCount;
 		bigtime_t framesDuration = (bigtime_t)(*_frameCount * 1000000
 			/ _FrameRate());
-		fCurrentTime = _header->start_time + framesDuration;
+		fCurrentTime = (bigtime_t)_header->start_time + framesDuration;
 #if 0
 	// This debug output shows drift between calculated fCurrentFrame and
 	// time-based current frame, if there is any.
@@ -611,7 +611,7 @@ BMediaTrack::ReadChunk(char** _buffer, int32* _size, media_header* _header)
 		// of the last chunk. Asking the extractor for the current time will
 		// not work so well because of the chunk cache. But providing a
 		// "duration" field in the media_header could be useful.
-		fCurrentTime = _header->start_time;
+		fCurrentTime = (bigtime_t)_header->start_time;
 		fCurrentFrame = (int64)(fCurrentTime * _FrameRate() / 1000000LL);
 
 	}

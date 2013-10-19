@@ -55,17 +55,17 @@ protected:
 	// Don't call this too densely, though, or you will flood the system
 	// with messages.
 			status_t			BroadcastNewParameterValue(
-									bigtime_t performanceTime,
+									perf_time_t performanceTime,
 									int32 parameterID, void* newValue,
 									size_t valueSize);
 
 	// These are alternate methods of accomplishing the same thing as
 	// connecting to control information source/destinations would.
 	virtual	status_t			GetParameterValue(int32 id,
-									bigtime_t* lastChange,
+									perf_time_t* lastChange,
 									void* value, size_t* ioSize) = 0;
 
-	virtual	void				SetParameterValue(int32 id, bigtime_t when,
+	virtual	void				SetParameterValue(int32 id, perf_time_t when,
 									const void* value, size_t size) = 0;
 
 	// The default implementation of StartControlPanel launches the add-on

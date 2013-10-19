@@ -325,7 +325,7 @@ BMediaNode::ReportError(node_error what, const BMessage* info)
 
 
 status_t
-BMediaNode::NodeStopped(bigtime_t whenPerformanceTime)
+BMediaNode::NodeStopped(perf_time_t whenPerformanceTime)
 {
 	UNIMPLEMENTED();
 	// called by derived classes when they have
@@ -336,7 +336,7 @@ BMediaNode::NodeStopped(bigtime_t whenPerformanceTime)
 
 	// BeBook: If your node is a BBufferProducer, downstream consumers
 	// BeBook: will be notified that your node stopped (automatically, no less)
-	// BeBook: through the 
+	// BeBook: through the
 	// BeBook: BBufferConsumer::ProducerDataStatus(B_PRODUCER_STOPPED) call.
 
 	return B_OK;
@@ -344,7 +344,7 @@ BMediaNode::NodeStopped(bigtime_t whenPerformanceTime)
 
 
 void
-BMediaNode::TimerExpired(bigtime_t notifyPoint, int32 cookie, status_t error)
+BMediaNode::TimerExpired(perf_time_t notifyPoint, int32 cookie, status_t error)
 {
 	UNIMPLEMENTED();
 	// Used with AddTimer
@@ -479,7 +479,7 @@ BMediaNode::WaitForMessage(bigtime_t waitUntil, uint32 flags, void* _reserved_)
 
 
 /* virtual */ void
-BMediaNode::Start(bigtime_t atPerformanceTime)
+BMediaNode::Start(perf_time_t atPerformanceTime)
 {
 	CALLED();
 	// <BeBook>
@@ -495,7 +495,7 @@ BMediaNode::Start(bigtime_t atPerformanceTime)
 
 
 /* virtual */ void
-BMediaNode::Stop(bigtime_t atPerformanceTime, bool immediate)
+BMediaNode::Stop(perf_time_t atPerformanceTime, bool immediate)
 {
 	CALLED();
 	// <BeBook>
@@ -511,7 +511,7 @@ BMediaNode::Stop(bigtime_t atPerformanceTime, bool immediate)
 
 
 /* virtual */ void
-BMediaNode::Seek(bigtime_t toMediaTime, bigtime_t atPerformanceTime)
+BMediaNode::Seek(bigtime_t toMediaTime, perf_time_t atPerformanceTime)
 {
 	CALLED();
 	// <BeBook>
@@ -543,7 +543,7 @@ BMediaNode::SetRunMode(run_mode mode)
 
 
 /* virtual */ void
-BMediaNode::TimeWarp(bigtime_t atRealTime, bigtime_t toPerformanceTime)
+BMediaNode::TimeWarp(bigtime_t atRealTime, perf_time_t toPerformanceTime)
 {
 	CALLED();
 	// May be overriden by derived classes.
@@ -655,7 +655,7 @@ BMediaNode::HandleMessage(int32 message, const void* data, size_t size)
 
 		case NODE_PREROLL:
 		{
-			TRACE("BMediaNode::HandleMessage NODE_PREROLL, node %ld\n",	
+			TRACE("BMediaNode::HandleMessage NODE_PREROLL, node %ld\n",
 				fNodeID);
 			Preroll();
 			return B_OK;
@@ -836,7 +836,7 @@ BMediaNode::GetNodeAttributes(media_node_attribute* outAttributes,
 
 
 /* virtual */ status_t
-BMediaNode::AddTimer(bigtime_t atPerformanceTime, int32 cookie)
+BMediaNode::AddTimer(perf_time_t atPerformanceTime, int32 cookie)
 {
 	UNIMPLEMENTED();
 

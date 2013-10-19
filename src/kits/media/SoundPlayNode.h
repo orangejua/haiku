@@ -83,14 +83,14 @@ protected:
 
 	virtual void 				LateNoticeReceived(const media_source& what,
 									bigtime_t howMuch,
-									bigtime_t performanceTime);
+									perf_time_t performanceTime);
 
 	virtual void 				EnableOutput(const media_source& what,
 									bool enabled, int32* _deprecated_);
 	virtual void 				AdditionalBufferRequested(
 									const media_source& source,
 									media_buffer_id previousBuffer,
-									bigtime_t previousTime,
+									perf_time_t previousTime,
 									const media_seek_tag* previousTag);
 	virtual void 				LatencyChanged(const media_source& source,
 									const media_destination& destination,
@@ -129,7 +129,7 @@ protected:
 									bool realTimeEvent = false);
 
 			status_t 			AllocateBuffers();
-			BBuffer*			FillNextBuffer(bigtime_t eventTime);
+			BBuffer*			FillNextBuffer(perf_time_t eventTime);
 
 private:
 			BSoundPlayer*		fPlayer;
@@ -140,7 +140,7 @@ private:
 			BBufferGroup*		fBufferGroup;
 			bigtime_t 			fLatency;
 			bigtime_t 			fInternalLatency;
-			bigtime_t 			fStartTime;
+			perf_time_t			fStartTime;
 			uint64 				fFramesSent;
 			int32				fTooEarlyCount;
 };

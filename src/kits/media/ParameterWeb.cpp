@@ -1262,7 +1262,7 @@ BParameter::Flags() const
 
 
 status_t
-BParameter::GetValue(void* buffer, size_t* _size, bigtime_t* _when)
+BParameter::GetValue(void* buffer, size_t* _size, perf_time_t* _when)
 {
 	CALLED();
 
@@ -1335,7 +1335,7 @@ BParameter::GetValue(void* buffer, size_t* _size, bigtime_t* _when)
 
 
 status_t
-BParameter::SetValue(const void* buffer, size_t size, bigtime_t when)
+BParameter::SetValue(const void* buffer, size_t size, perf_time_t when)
 {
 	CALLED();
 

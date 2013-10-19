@@ -324,7 +324,7 @@ BControllable::BroadcastChangedParameter(int32 id)
 
 
 status_t
-BControllable::BroadcastNewParameterValue(bigtime_t when, int32 id,
+BControllable::BroadcastNewParameterValue(perf_time_t when, int32 id,
 	void* newValue, size_t valueSize)
 {
 	CALLED();

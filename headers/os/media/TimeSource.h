@@ -28,17 +28,17 @@ protected:
 	virtual						~BTimeSource();
 
 public:
-	virtual	status_t			SnoozeUntil(bigtime_t performanceTime,
+	virtual	status_t			SnoozeUntil(perf_time_t performanceTime,
 									bigtime_t withLatency = 0,
 									bool retrySignals = false);
 
-			bigtime_t			Now();
-			bigtime_t			PerformanceTimeFor(bigtime_t realTime);
-			bigtime_t			RealTimeFor(bigtime_t performanceTime,
+			perf_time_t			Now();
+			perf_time_t			PerformanceTimeFor(bigtime_t realTime);
+			bigtime_t			RealTimeFor(perf_time_t performanceTime,
 									bigtime_t withLatency);
 			bool				IsRunning();
 
-			status_t			GetTime(bigtime_t* _performanceTime,
+			status_t			GetTime(perf_time_t* _performanceTime,
 									bigtime_t* _realTime, float* _drift);
 			status_t			GetStartLatency(bigtime_t* _latency);
 
@@ -50,11 +50,11 @@ protected:
 	virtual	status_t			HandleMessage(int32 message, const void* data,
 									size_t size);
 
-			void				PublishTime(bigtime_t performanceTime,
+			void				PublishTime(perf_time_t performanceTime,
 									bigtime_t realTime, float drift);
 
 			void				BroadcastTimeWarp(bigtime_t atRealTime,
-									bigtime_t newPerformanceTime);
+									perf_time_t newPerformanceTime);
 
 			void				SendRunMode(run_mode mode);
 	virtual	void				SetRunMode(run_mode mode);
@@ -70,7 +70,7 @@ protected:
 		time_source_op	op;
 		int32			_reserved1;
 		bigtime_t		real_time;
-		bigtime_t		performance_time;
+		perf_time_t		performance_time;
 		int32			_reserved2[6];
 	};
 
@@ -105,7 +105,7 @@ private:
 
 			void				DirectStart(bigtime_t at);
 			void				DirectStop(bigtime_t at, bool immediate);
-			void				DirectSeek(bigtime_t to, bigtime_t at);
+			void				DirectSeek(perf_time_t to, bigtime_t at);
 			void				DirectSetRunMode(run_mode mode);
 			void				DirectAddMe(const media_node& node);
 			void				DirectRemoveMe(const media_node& node);

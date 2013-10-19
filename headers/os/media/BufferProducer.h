@@ -97,7 +97,7 @@ protected:
 									int32 * _deprecated_);
 
 	// Iterates over all outputs and maxes the latency found
-	virtual	status_t			GetLatency(bigtime_t* _lantency);
+	virtual	status_t			GetLatency(bigtime_t* _latency);
 
 	virtual	status_t			PrepareToConnect(const media_source& what,
 									const media_destination& where,
@@ -114,7 +114,7 @@ protected:
 
 	virtual	void				LateNoticeReceived(const media_source& what,
 									bigtime_t howMuch,
-									bigtime_t performanceTime) = 0;
+									perf_time_t performanceTime) = 0;
 
 	virtual	void				EnableOutput(const media_source& what,
 									bool enabled, int32* _deprecated_) = 0;
@@ -128,7 +128,7 @@ protected:
 	virtual	void				AdditionalBufferRequested(
 									const media_source& source,
 									media_buffer_id previousBuffer,
-									bigtime_t previousTime,
+									perf_time_t previousTime,
 									const media_seek_tag* previousTag
 										/* = NULL */);
 
@@ -138,12 +138,12 @@ protected:
 
 	// NOTE: Use this function to pass on the buffer on to the BBufferConsumer.
 			status_t			SendBuffer(BBuffer* buffer,
-									const media_source& source, 
+									const media_source& source,
 									const media_destination& destination);
 
 			status_t			SendDataStatus(int32 status,
 									const media_destination& destination,
-									bigtime_t atTime);
+									perf_time_t atTime);
 
 	// Check in advance if a target is prepared to accept a format. You may
 	// want to call this from Connect(), although that's not required.

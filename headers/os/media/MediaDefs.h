@@ -23,6 +23,9 @@ struct media_node;
 #define B_MEDIA_NAME_LENGTH 64
 
 
+typedef bigtime_t perf_time_t;
+
+
 /* Notification messages 'what' fields */
 enum {
 	/* Note that BMediaNode::node_error also belongs in here! */
@@ -662,7 +665,7 @@ struct media_header {
 	media_node_id	time_source;	// node that encoded start_time
 	uint32			_deprecated_;	// used to be change_tag
 	uint32			size_used;		// size within buffer that is used
-	bigtime_t		start_time;		// performance time
+	perf_time_t		start_time;		// performance time
 	area_id			owner;			//+ buffer owner info area
 	enum {
 		B_SEEK_TAG	= 'TRST',		// user data type of the codec seek

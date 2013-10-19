@@ -1189,7 +1189,7 @@ BMediaRoster::Disconnect(const media_output& output, const media_input& input)
 
 
 status_t
-BMediaRoster::StartNode(const media_node& node, bigtime_t atPerformanceTime)
+BMediaRoster::StartNode(const media_node& node, perf_time_t atPerformanceTime)
 {
 	CALLED();
 	if (node.node <= 0)
@@ -1206,7 +1206,7 @@ BMediaRoster::StartNode(const media_node& node, bigtime_t atPerformanceTime)
 
 
 status_t
-BMediaRoster::StopNode(const media_node& node, bigtime_t atPerformanceTime,
+BMediaRoster::StopNode(const media_node& node, perf_time_t atPerformanceTime,
 	bool immediate)
 {
 	CALLED();
@@ -1226,7 +1226,7 @@ BMediaRoster::StopNode(const media_node& node, bigtime_t atPerformanceTime,
 
 status_t
 BMediaRoster::SeekNode(const media_node& node, bigtime_t toMediaTime,
-	bigtime_t atPerformanceTime)
+	perf_time_t atPerformanceTime)
 {
 	CALLED();
 	if (IS_INVALID_NODE(node))
@@ -1319,7 +1319,7 @@ BMediaRoster::StopTimeSource(const media_node& node, bigtime_t atRealTime,
 
 status_t
 BMediaRoster::SeekTimeSource(const media_node& node,
-	bigtime_t toPerformanceTime, bigtime_t atRealTime)
+	perf_time_t toPerformanceTime, bigtime_t atRealTime)
 {
 	CALLED();
 	if (IS_SYSTEM_TIMESOURCE(node)) {
@@ -1358,7 +1358,7 @@ BMediaRoster::SeekTimeSource(const media_node& node,
 
 
 status_t
-BMediaRoster::SyncToNode(const media_node& node, bigtime_t atTime,
+BMediaRoster::SyncToNode(const media_node& node, perf_time_t atTime,
 	bigtime_t timeout)
 {
 	UNIMPLEMENTED();
@@ -1394,8 +1394,8 @@ BMediaRoster::PrerollNode(const media_node& node)
 
 
 status_t
-BMediaRoster::RollNode(const media_node& node, bigtime_t startPerformance,
-	bigtime_t stopPerformance, bigtime_t atMediaTime)
+BMediaRoster::RollNode(const media_node& node, perf_time_t startPerformance,
+	perf_time_t stopPerformance, bigtime_t atMediaTime)
 {
 	UNIMPLEMENTED();
 	return B_ERROR;

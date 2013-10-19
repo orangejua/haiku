@@ -35,7 +35,7 @@ struct TimeSourceTransmit // sizeof(TimeSourceTransmit) must be <= TS_AREA_SIZE
 	int32 writeindex;
 	int32 isrunning;
 	bigtime_t realtime[TS_INDEX_COUNT];
-	bigtime_t perftime[TS_INDEX_COUNT];
+	perf_time_t perftime[TS_INDEX_COUNT];
 	float drift[TS_INDEX_COUNT];
 };
 
@@ -91,7 +91,7 @@ BTimeSource::~BTimeSource()
  *************************************************************/
 
 status_t
-BTimeSource::SnoozeUntil(bigtime_t performance_time,
+BTimeSource::SnoozeUntil(perf_time_t performance_time,
 						 bigtime_t with_latency,
 						 bool retry_signals)
 {
@@ -106,7 +106,7 @@ BTimeSource::SnoozeUntil(bigtime_t performance_time,
 }
 
 
-bigtime_t
+perf_time_t
 BTimeSource::Now()
 {
 	PRINT(8, "CALLED BTimeSource::Now()\n");
@@ -114,32 +114,33 @@ BTimeSource::Now()
 }
 
 
-bigtime_t
+perf_time_t
 BTimeSource::PerformanceTimeFor(bigtime_t real_time)
 {
 	PRINT(8, "CALLED BTimeSource::PerformanceTimeFor()\n");
-	bigtime_t last_perf_time;
+	perf_time_t last_perf_time;
 	bigtime_t last_real_time;
 	float last_drift;
 
 	if (GetTime(&last_perf_time, &last_real_time, &last_drift) != B_OK)
 		debugger("BTimeSource::PerformanceTimeFor: GetTime failed");
 
-	return last_perf_time + (bigtime_t)((real_time - last_real_time) * last_drift);
+	return last_perf_time
+		+ (perf_time_t)((real_time - last_real_time) * last_drift);
 }
 
 
 bigtime_t
-BTimeSource::RealTimeFor(bigtime_t performance_time,
+BTimeSource::RealTimeFor(perf_time_t performance_time,
 						 bigtime_t with_latency)
 {
 	PRINT(8, "CALLED BTimeSource::RealTimeFor()\n");
 
 	if (fIsRealtime) {
-		return performance_time - with_latency;
+		return (bigtime_t)performance_time - with_latency;
 	}
 
-	bigtime_t last_perf_time;
+	perf_time_t last_perf_time;
 	bigtime_t last_real_time;
 	float last_drift;
 
@@ -169,7 +170,7 @@ BTimeSource::IsRunning()
 
 
 status_t
-BTimeSource::GetTime(bigtime_t *performance_time,
+BTimeSource::GetTime(perf_time_t *performance_time,
 					 bigtime_t *real_time,
 					 float *drift)
 {
@@ -311,7 +312,7 @@ BTimeSource::HandleMessage(int32 message,
 
 
 void
-BTimeSource::PublishTime(bigtime_t performance_time,
+BTimeSource::PublishTime(perf_time_t performance_time,
 						 bigtime_t real_time,
 						 float drift)
 {
@@ -339,7 +340,7 @@ BTimeSource::PublishTime(bigtime_t performance_time,
 
 void
 BTimeSource::BroadcastTimeWarp(bigtime_t at_real_time,
-							   bigtime_t new_performance_time)
+							   perf_time_t new_performance_time)
 {
 	CALLED();
 	ASSERT(fSlaveNodes != NULL);
@@ -592,7 +593,7 @@ BTimeSource::DirectStop(bigtime_t at,
 
 
 void
-BTimeSource::DirectSeek(bigtime_t to,
+BTimeSource::DirectSeek(perf_time_t to,
 						bigtime_t at)
 {
 	UNIMPLEMENTED();

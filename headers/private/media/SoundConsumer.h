@@ -55,13 +55,13 @@ public:
 
 
 protected:
-	virtual	void				Start(bigtime_t performanceTime);
-	virtual	void				Stop(bigtime_t performanceTime, bool immediate);
+	virtual	void				Start(perf_time_t performanceTime);
+	virtual	void				Stop(perf_time_t performanceTime, bool immediate);
 	virtual	void				Seek(bigtime_t mediaTime,
-									bigtime_t performanceTime);
+									perf_time_t performanceTime);
 	virtual	void				SetRunMode(run_mode mode);
 	virtual	void				TimeWarp(bigtime_t atRealTime,
-									bigtime_t to_performanceTime);
+									perf_time_t to_performanceTime);
 	virtual	void				Preroll();
 	virtual	void				SetTimeSource(BTimeSource* timeSource);
 	virtual	status_t			HandleMessage(int32 message, const void* data,
@@ -76,7 +76,8 @@ protected:
 	virtual	void				BufferReceived(BBuffer* buffer);
 	virtual	void				ProducerDataStatus(
 									const media_destination& forWhom,
-									int32 status, bigtime_t atMediaTime);
+									int32 status,
+									perf_time_t atPerformanceTime);
 	virtual	status_t			GetLatencyFor(const media_destination& forWhom,
 									bigtime_t* _latency,
 									media_node_id* _timesource);
@@ -87,7 +88,7 @@ protected:
 	virtual	void				Disconnected(const media_source& producer,
 									const media_destination& where);
 	virtual	status_t			FormatChanged(const media_source& producer,
-									const media_destination& consumer, 
+									const media_destination& consumer,
 									int32 fromChangeCount,
 									const media_format& format);
 
@@ -112,7 +113,7 @@ private:
 	// tp = performance time, tm = media time.
 			bigtime_t			m_trTimeout;
 				// how long to wait on the input port
-			bigtime_t			m_tpSeekAt;
+			perf_time_t			m_tpSeekAt;
 				// when we Seek
 			bigtime_t			m_tmSeekTo;
 				// target time for Seek
@@ -126,7 +127,7 @@ private:
 	// to track where we were in playing a certain piece
 	// of media. But we aren't.
 			bigtime_t			m_delta;
-		
+
 	// State variables
 			bool				m_seeking;
 				// a Seek is pending

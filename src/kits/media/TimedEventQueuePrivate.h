@@ -11,6 +11,7 @@
 
 #include <Locker.h>
 #include <MediaDefs.h>
+#include <TimedEventQueue.h>
 
 #include "debug.h"
 

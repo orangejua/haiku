@@ -392,11 +392,11 @@ BSoundPlayer::CurrentTime()
 	being used by the BSoundPlayer. Will return B_ERROR if the
 	BSoundPlayer object hasn't been properly initialized.
 */
-bigtime_t
+perf_time_t
 BSoundPlayer::PerformanceTime()
 {
 	if ((fFlags & F_NODES_CONNECTED) == 0)
-		return (bigtime_t) B_ERROR;
+		return (perf_time_t) B_ERROR;
 
 	return fPlayerNode->TimeSource()->Now();
 }
@@ -428,14 +428,14 @@ BSoundPlayer::Preroll()
 
 
 BSoundPlayer::play_id
-BSoundPlayer::StartPlaying(BSound* sound, bigtime_t atTime)
+BSoundPlayer::StartPlaying(BSound* sound, perf_time_t atTime)
 {
 	return StartPlaying(sound, atTime, 1.0);
 }
 
 
 BSoundPlayer::play_id
-BSoundPlayer::StartPlaying(BSound* sound, bigtime_t atTime, float withVolume)
+BSoundPlayer::StartPlaying(BSound* sound, perf_time_t atTime, float withVolume)
 {
 	CALLED();
 

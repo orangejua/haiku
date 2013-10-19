@@ -98,33 +98,33 @@ public:
 			enum connect_flags {
 				B_CONNECT_MUTED = 0x1
 			};
-		
+
 			status_t			Connect(const media_source& from,
 									const media_destination& to,
 									media_format* _inOutFormat,
 									media_output* _output,
 									media_input* _input,
 									uint32 flags, void* _reserved = NULL);
-				
+
 			status_t			Disconnect(media_node_id sourceNode,
 									const media_source& source,
 									media_node_id destinationNode,
 									const media_destination& destination);
 
-		
+
 			status_t			Disconnect(const media_output& output,
 									const media_input& input);
 				// NOTE: This is a Haiku extension.
 
 			status_t			StartNode(const media_node& node,
-									bigtime_t atPerformanceTime);
+									perf_time_t atPerformanceTime);
 			status_t			StopNode(const media_node& node,
-									bigtime_t atPerformanceTime,
+									perf_time_t atPerformanceTime,
 									bool immediate = false);
 				// If "immediate" is true, "atPerformanceTime" is ignored.
 			status_t			SeekNode(const media_node& node,
 									bigtime_t toMediaTime,
-									bigtime_t atPerformanceTime = 0);
+									perf_time_t atPerformanceTime = 0);
 				// NOTE: The node needs to be running.
 
 			status_t			StartTimeSource(const media_node& node,
@@ -133,19 +133,19 @@ public:
 									bigtime_t atRealTime,
 									bool immediate = false);
 			status_t			SeekTimeSource(const media_node& node,
-									bigtime_t toPerformanceTime,
+									perf_time_t toPerformanceTime,
 									bigtime_t atRealTime);
 
 			status_t			SyncToNode(const media_node& node,
-									bigtime_t atTime,
+									perf_time_t atTime,
 									bigtime_t timeout = B_INFINITE_TIMEOUT);
 			status_t			SetRunModeNode(const media_node& node,
 									BMediaNode::run_mode mode);
 			status_t			PrerollNode(const media_node& node);
 				// NOTE: This method is synchronous.
-			status_t			RollNode(const media_node& node, 
-									bigtime_t startPerformance,
-									bigtime_t stopPerformance,
+			status_t			RollNode(const media_node& node,
+									perf_time_t startPerformance,
+									perf_time_t stopPerformance,
 									bigtime_t atMediaTime
 										= -B_INFINITE_TIMEOUT);
 
@@ -222,7 +222,7 @@ public:
 									media_node_id timeSource);
 
 	// Building a control GUI for a node:
-			status_t			GetParameterWebFor(const media_node& node, 
+			status_t			GetParameterWebFor(const media_node& node,
 									BParameterWeb** _web);
 			status_t			StartControlPanel(const media_node& node,
 									BMessenger* _messenger = NULL);
@@ -264,7 +264,7 @@ public:
 
 	// Finding a suitable node to playback a file:
 			status_t			GetFileFormatsFor(
-									const media_node& fileInterface, 
+									const media_node& fileInterface,
 									media_file_format* _formatsBuffer,
 									int32* _inOutNumInfos);
 			status_t			SetRefFor(const media_node& fileInterface,

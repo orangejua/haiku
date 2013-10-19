@@ -85,7 +85,7 @@ BMediaEventLooper::NodeRegistered()
 
 
 /* virtual */ void
-BMediaEventLooper::Start(bigtime_t performanceTime)
+BMediaEventLooper::Start(perf_time_t performanceTime)
 {
 	CALLED();
 	// <BeBook>
@@ -93,14 +93,14 @@ BMediaEventLooper::Start(bigtime_t performanceTime)
 	// by a call to the BMediaRoster. The specified
 	// performanceTime, the time at which the node
 	// should start running, may be in the future.
-	// </BeBook>	
+	// </BeBook>
 	fEventQueue.AddEvent(media_timed_event(performanceTime,
 		BTimedEventQueue::B_START));
 }
 
 
 /* virtual */ void
-BMediaEventLooper::Stop(bigtime_t performanceTime,
+BMediaEventLooper::Stop(perf_time_t performanceTime,
 						bool immediate)
 {
 	CALLED();
@@ -127,7 +127,7 @@ BMediaEventLooper::Stop(bigtime_t performanceTime,
 
 /* virtual */ void
 BMediaEventLooper::Seek(bigtime_t mediaTime,
-						bigtime_t performanceTime)
+						perf_time_t performanceTime)
 {
 	CALLED();
 	// <BeBook>
@@ -144,7 +144,7 @@ BMediaEventLooper::Seek(bigtime_t mediaTime,
 
 /* virtual */ void
 BMediaEventLooper::TimeWarp(bigtime_t atRealTime,
-							bigtime_t toPerformanceTime)
+							perf_time_t toPerformanceTime)
 {
 	CALLED();
 	// <BeBook>
@@ -172,7 +172,7 @@ BMediaEventLooper::TimeWarp(bigtime_t atRealTime,
 
 
 /* virtual */ status_t
-BMediaEventLooper::AddTimer(bigtime_t atPerformanceTime,
+BMediaEventLooper::AddTimer(perf_time_t atPerformanceTime,
 							int32 cookie)
 {
 	CALLED();
@@ -222,7 +222,7 @@ BMediaEventLooper::CleanUpEvent(const media_timed_event* event)
 }
 
 
-/* virtual */ bigtime_t
+/* virtual */ perf_time_t
 BMediaEventLooper::OfflineTime()
 {
 	CALLED();
@@ -246,7 +246,7 @@ BMediaEventLooper::ControlLoop()
 		for (;;) {
 			if (RunState() == B_QUITTING)
 				return;
-				
+
 			// <BeBook>
 			// BMediaEventLooper compensates your performance time by adding
 			// the event latency (see SetEventLatency()) and the scheduling
@@ -304,7 +304,7 @@ BMediaEventLooper::ControlLoop()
 		if (status == B_OK) {
 			bigtime_t lateness;
 			if (isRealtime)
-				lateness = TimeSource()->RealTime() - event.event_time;
+				lateness = TimeSource()->RealTime() - (bigtime_t)event.event_time;
 			else
 				lateness = TimeSource()->RealTime()
 					- TimeSource()->RealTimeFor(event.event_time, 0)
@@ -444,7 +444,7 @@ BMediaEventLooper::SetBufferDuration(bigtime_t duration)
 
 
 void
-BMediaEventLooper::SetOfflineTime(bigtime_t offTime)
+BMediaEventLooper::SetOfflineTime(perf_time_t offTime)
 {
 	CALLED();
 	fOfflineTime = offTime;

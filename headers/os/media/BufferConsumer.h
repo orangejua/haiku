@@ -38,7 +38,7 @@ protected:
 	static	void				NotifyLateProducer(
 									const media_source& whatSource,
 									bigtime_t howMuch,
-									bigtime_t performanceTime);
+									perf_time_t performanceTime);
 			status_t			SetVideoClippingFor(const media_source& output,
 									const media_destination& destination,
 									const int16* shorts, int32 shortCount,
@@ -60,7 +60,7 @@ protected:
 									void* _reserved = NULL);
 			status_t			RequestAdditionalBuffer(
 									const media_source& source,
-									bigtime_t startTime,
+									perf_time_t startTime,
 									void* _reserved = NULL);
 			status_t			SetOutputBuffersFor(const media_source& source,
 									const media_destination& destination,
@@ -85,7 +85,7 @@ protected:
 	virtual	void				ProducerDataStatus(
 									const media_destination& forWhom,
 									int32 status,
-									bigtime_t atPerformanceTime) = 0;
+									perf_time_t atPerformanceTime) = 0;
 	virtual	status_t			GetLatencyFor(const media_destination& forWhom,
 									bigtime_t* _latency,
 									media_node_id* _timesource) = 0;

@@ -395,7 +395,7 @@ BBufferProducer::HandleMessage(int32 message, const void* data, size_t size)
 
 void
 BBufferProducer::AdditionalBufferRequested(const media_source& source,
-	media_buffer_id previousBuffer, bigtime_t previousTime,
+	media_buffer_id previousBuffer, perf_time_t previousTime,
 	const media_seek_tag* previousTag)
 {
 	CALLED();
@@ -444,7 +444,7 @@ BBufferProducer::SendBuffer(BBuffer* buffer, const media_source& source,
 
 status_t
 BBufferProducer::SendDataStatus(int32 status,
-	const media_destination& destination, bigtime_t atTime)
+	const media_destination& destination, perf_time_t atTime)
 {
 	CALLED();
 	if (IS_INVALID_DESTINATION(destination))

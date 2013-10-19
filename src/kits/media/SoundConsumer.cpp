@@ -191,7 +191,7 @@ SoundConsumer::AddOn(int32 * internal_id) const
 
 
 void
-SoundConsumer::Start(bigtime_t performance_time)
+SoundConsumer::Start(perf_time_t performance_time)
 {
 	//	Since we are a consumer and just blindly accept buffers that are
 	//	thrown at us, we don't need to do anything special in Start()/Stop().
@@ -211,7 +211,7 @@ SoundConsumer::Start(bigtime_t performance_time)
 
 
 void
-SoundConsumer::Stop(bigtime_t performance_time, bool immediate)
+SoundConsumer::Stop(perf_time_t performance_time, bool immediate)
 {
 	//	Since we are a consumer and just blindly accept buffers that are
 	//	thrown at us, we don't need to do anything special in Start()/Stop().
@@ -229,7 +229,7 @@ SoundConsumer::Stop(bigtime_t performance_time, bool immediate)
 
 
 void
-SoundConsumer::Seek(bigtime_t media_time, bigtime_t performance_time)
+SoundConsumer::Seek(bigtime_t media_time, perf_time_t performance_time)
 {
 	//	Seek() on a consumer just serves to offset the time stamp
 	//	of received buffers passed to our Record hook function.
@@ -291,7 +291,8 @@ SoundConsumer::SetRunMode(run_mode mode)
 
 
 void
-SoundConsumer::TimeWarp(bigtime_t at_real_time, bigtime_t to_performance_time)
+SoundConsumer::TimeWarp(bigtime_t at_real_time,
+	perf_time_t to_performance_time)
 {
 	//	Since buffers will come pre-time-stamped, we only need to look
 	//	at them, so we can ignore the time warp as a consumer.
@@ -427,19 +428,19 @@ SoundConsumer::BufferReceived(BBuffer* buffer)
 
 
 void
-SoundConsumer::ProducerDataStatus(const media_destination& for_whom,
-	int32 status, bigtime_t at_media_time)
+SoundConsumer::ProducerDataStatus(const media_destination& forWhom,
+	int32 status, perf_time_t atPerformanceTime)
 {
-	if (for_whom != m_input.destination)
+	if (forWhom != m_input.destination)
 		return;
 
 	//	Tell whomever is interested that the upstream producer will or won't
 	//	send more data in the immediate future.
 	if (m_notifyHook) {
 		(*m_notifyHook)(m_cookie, B_PRODUCER_DATA_STATUS, status,
-			at_media_time);
+			atPerformanceTime);
 	} else
-		Notify(B_PRODUCER_DATA_STATUS, status, at_media_time);
+		Notify(B_PRODUCER_DATA_STATUS, status, atPerformanceTime);
 }
 
 

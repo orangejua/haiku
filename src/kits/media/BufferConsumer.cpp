@@ -98,7 +98,7 @@ BBufferConsumer::BBufferConsumer(media_type consumerType)
 
 /*static*/ void
 BBufferConsumer::NotifyLateProducer(const media_source& whatSource,
-	bigtime_t howMuch, bigtime_t performanceTime)
+	bigtime_t howMuch, perf_time_t performanceTime)
 {
 	CALLED();
 	if (IS_INVALID_SOURCE(whatSource))
@@ -236,7 +236,7 @@ BBufferConsumer::RequestAdditionalBuffer(const media_source &source,
 
 status_t
 BBufferConsumer::RequestAdditionalBuffer(const media_source& source,
-	bigtime_t startTime, void *_reserved)
+	perf_time_t startTime, void *_reserved)
 {
 	CALLED();
 	if (IS_INVALID_SOURCE(source))

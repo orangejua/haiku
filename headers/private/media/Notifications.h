@@ -73,7 +73,7 @@ void		BuffersCreated(area_info* areas, int32 count);
 void		BuffersDeleted(const media_buffer_id* ids, int32 count);
 
 // called by BMediaNode::NodeStopped()
-void		NodeStopped(const media_node& node, bigtime_t when);
+void		NodeStopped(const media_node& node, perf_time_t when);
 
 // called by BControllable::BroadcastChangedParameter()
 status_t	ParameterChanged(const media_node& node, int32 parameterID);
@@ -83,7 +83,7 @@ void		WebChanged(const media_node& node);
 
 // called by BControllable::BroadcastNewParameterValue()
 status_t	NewParameterValue(const media_node& node, int32 parameterID,
-				bigtime_t when, const void* parameter, size_t parameterSize);
+				perf_time_t when, const void* parameter, size_t parameterSize);
 
 // called by the media_addon_server AFTER a flavor change has been
 // handled. NOT CALLED by BMediaAddOn::NotifyFlavorChange()

@@ -474,7 +474,7 @@ SoundPlayNode::Disconnect(const media_source& what,
 
 void
 SoundPlayNode::LateNoticeReceived(const media_source& what, bigtime_t howMuch,
-	bigtime_t performanceTime)
+	perf_time_t performanceTime)
 {
 	CALLED();
 
@@ -542,7 +542,7 @@ SoundPlayNode::EnableOutput(const media_source& what, bool enabled,
 
 void
 SoundPlayNode::AdditionalBufferRequested(const media_source& source,
-	media_buffer_id previousBuffer, bigtime_t previousTime,
+	media_buffer_id previousBuffer, perf_time_t previousTime,
 	const media_seek_tag* previousTag)
 {
 	CALLED();
@@ -689,7 +689,7 @@ SoundPlayNode::SendNewBuffer(const media_timed_event* event,
 	// The buffer is on its way; now schedule the next one to go
 	// nextEvent is the time at which the buffer should arrive at it's
 	// destination
-	bigtime_t nextEvent = fStartTime + bigtime_t((1000000LL * fFramesSent)
+	perf_time_t nextEvent = fStartTime + perf_time_t((1000000LL * fFramesSent)
 		/ (int32)fOutput.format.u.raw_audio.frame_rate);
 	media_timed_event nextBufferEvent(nextEvent, SEND_NEW_BUFFER_EVENT);
 	EventQueue()->AddEvent(nextBufferEvent);
@@ -817,7 +817,7 @@ SoundPlayNode::AllocateBuffers()
 
 
 BBuffer*
-SoundPlayNode::FillNextBuffer(bigtime_t eventTime)
+SoundPlayNode::FillNextBuffer(perf_time_t eventTime)
 {
 	CALLED();
 

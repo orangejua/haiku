@@ -804,7 +804,7 @@ struct producer_video_clipping_changed_command : command_data {
 struct producer_additional_buffer_requested_command : command_data {
 	media_source			source;
 	media_buffer_id			prev_buffer;
-	bigtime_t				prev_time;
+	perf_time_t				prev_time;
 	bool					has_seek_tag;
 	media_seek_tag			prev_tag;
 };
@@ -827,7 +827,7 @@ struct producer_enable_output_command : command_data {
 struct producer_late_notice_received_command : command_data {
 	media_source			source;
 	bigtime_t				how_much;
-	bigtime_t				performance_time;
+	perf_time_t				performance_time;
 };
 
 struct producer_set_run_mode_delay_command : command_data {
@@ -906,7 +906,7 @@ struct consumer_buffer_received_command : command_data {
 struct consumer_producer_data_status_command : command_data {
 	media_destination		for_whom;
 	int32					status;
-	bigtime_t				at_performance_time;
+	perf_time_t				at_performance_time;
 };
 
 struct consumer_get_latency_for_request : request_data {
@@ -949,17 +949,17 @@ struct node_request_completed_command : command_data {
 };
 
 struct node_start_command : command_data {
-	bigtime_t				performance_time;
+	perf_time_t				performance_time;
 };
 
 struct node_stop_command : command_data {
-	bigtime_t				performance_time;
+	perf_time_t				performance_time;
 	bool					immediate;
 };
 
 struct node_seek_command : command_data {
 	bigtime_t				media_time;
-	bigtime_t				performance_time;
+	perf_time_t				performance_time;
 };
 
 struct node_set_run_mode_command : command_data {
@@ -968,7 +968,7 @@ struct node_set_run_mode_command : command_data {
 
 struct node_time_warp_command : command_data {
 	bigtime_t				at_real_time;
-	bigtime_t				to_performance_time;
+	perf_time_t				to_performance_time;
 };
 
 struct node_set_timesource_command : command_data {
@@ -1064,14 +1064,14 @@ struct controllable_get_parameter_data_request : area_request_data {
 };
 
 struct controllable_get_parameter_data_reply : reply_data {
-	bigtime_t				last_change;
+	perf_time_t				last_change;
 	char					raw_data[MAX_PARAMETER_DATA];
 	size_t					size;
 };
 
 struct controllable_set_parameter_data_request : area_request_data {
 	int32					parameter_id;
-	bigtime_t				when;
+	perf_time_t				when;
 	size_t					size;
 	char					raw_data[MAX_PARAMETER_DATA];
 };
